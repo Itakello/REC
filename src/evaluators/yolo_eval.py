@@ -21,3 +21,6 @@ class YOLOEvaluator(BaseEvaluator):
             )
             for iou_threshold in self.iou_thresholds:
                 wandb.log({f"{self.eval_name}/iou_{iou_threshold}": 0})
+
+    def get_dataloaders(self) -> list[tuple]:
+        return super().get_dataloaders()
