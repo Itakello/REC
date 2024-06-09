@@ -11,6 +11,19 @@ from src.managers.download_manager import DownloadManager
 ItakelloLogging(excluded_modules=[], debug=True)
 
 DATASET_URL = "https://drive.google.com/uc?id=1xijq32XfEm6FPhUb7RsZYWHc2UuwVkiq"
+YOLO_VERSIONS = [
+    "yolov5nu.pt",
+    "yolov5su.pt",
+    "yolov5mu.pt",
+    "yolov5lu.pt",
+    "yolov5xu.pt",
+    "yolov8n.pt",
+    "yolov8s.pt",
+    "yolov8m.pt",
+    "yolov8l.pt",
+    "yolov8x.pt",
+]
+IOU_THRESHOLDS = [0.1, 0.3, 0.5, 0.7, 0.9]
 
 
 def main() -> None:
@@ -23,19 +36,8 @@ def main() -> None:
 
     yolo_eval = YOLOEvaluator(
         eval_name="yolo_baseline",
-        yolo_versions=[
-            "yolov5nu.pt",
-            "yolov5su.pt",
-            "yolov5mu.pt",
-            "yolov5lu.pt",
-            "yolov5xu.pt",
-            "yolov8n.pt",
-            "yolov8s.pt",
-            "yolov8m.pt",
-            "yolov8l.pt",
-            "yolov8x.pt",
-        ],
-        iou_thresholds=[0.1, 0.3, 0.5, 0.7, 0.9],
+        yolo_versions=YOLO_VERSIONS,
+        iou_thresholds=IOU_THRESHOLDS,
     )
     yolo_eval.evaluate()"""
 
