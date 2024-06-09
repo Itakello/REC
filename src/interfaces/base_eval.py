@@ -3,15 +3,13 @@ from dataclasses import dataclass
 
 from itakello_logging import ItakelloLogging
 
+from .base_class import BaseClass
+
 logger = ItakelloLogging().get_logger(__name__)
 
 
 @dataclass
-class BaseEvaluator(ABC):
-    eval_name: str
-
-    def __post_init__(self) -> None:
-        logger.debug(f"Initializing [{self.eval_name}] evaluator.")
+class BaseEvaluator(BaseClass):
 
     @abstractmethod
     def evaluate(self) -> None:

@@ -1,0 +1,11 @@
+## Folders
+**/wandb/
+**/data/
+**/__pycache__/
+**/logs/
+**/.mypy_cache/
+
+## Extensions
+*.tar.gz
+*.pt
+*.ipynb_checkpoints

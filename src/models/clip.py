@@ -6,7 +6,7 @@ from itakello_logging import ItakelloLogging
 from PIL import Image
 from torchvision.transforms import Compose
 
-from ...utils.consts import DEVICE
+from ..utils.consts import DEVICE
 
 logger = ItakelloLogging().get_logger(__name__)
 
