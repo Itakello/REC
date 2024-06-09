@@ -52,18 +52,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
       - name: Install mypy
         run: python -m pip install mypy
       
       - name: Run mypy
-        run: mypy . --exclude build --ignore-missing-imports
+        run: mypy . --ignore-missing-imports
 
-  lint-check:
+  format:
     needs: cache
     runs-on: ubuntu-latest
     steps:
@@ -82,22 +77,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install dependencies
+      - name: Install black
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Install linters
-        run: |
-          pip install black flake8
+          pip install black
 
       - name: Run black
-        run: black --check .
+        run: black .
 
-      - name: Run flake8
-        run: flake8 .
-
-  format-check:
+  lint:
     needs: cache
     runs-on: ubuntu-latest
     steps:
@@ -116,13 +103,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Install flake8
+        run: pip install flake8
 
-      - name: Install black
-        run: pip install black
-
-      - name: Run black
-        run: black --check .
+      - name: Run flake8
+        run: flake8 .

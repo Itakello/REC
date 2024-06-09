@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-import wandb
-from torch.utils.data import DataLoader
-
 from ..interfaces.base_eval import BaseEvaluator
+
+# import wandb
+# from torch.utils.data import DataLoader
 
 
 @dataclass

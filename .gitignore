@@ -9,3 +9,4 @@
 *.tar.gz
 *.pt
 *.ipynb_checkpoints
+*.cpython-310.pyc

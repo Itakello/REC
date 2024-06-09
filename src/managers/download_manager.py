@@ -10,6 +10,7 @@ from ..interfaces.base_class import BaseClass
 
 logger = ItakelloLogging().get_logger(__name__)
 
+
 @dataclass
 class DownloadManager(BaseClass):
     data_path: Path
@@ -35,7 +36,7 @@ class DownloadManager(BaseClass):
 
         # Clean up: remove the tar.gz file and the extracted folder
         compressed_file_name.unlink()
-        #shutil.rmtree(self.data_path / "refcocog")
+        # shutil.rmtree(self.data_path / "refcocog")
         logger.confirmation("Dataset downloaded succesfully")
 
 

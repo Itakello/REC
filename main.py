@@ -2,18 +2,21 @@ from pathlib import Path
 
 from itakello_logging import ItakelloLogging
 
-from src.evaluators.yolo_eval import YOLOEvaluator
-from src.models.clip import CLIP
-
 from src.managers.download_manager import DownloadManager
 
+# from src.evaluators.yolo_eval import YOLOEvaluator
+# from src.models.clip import CLIP
+
+
 ItakelloLogging(excluded_modules=[], debug=True)
+
+DATASET_URL = "https://drive.google.com/uc?id=1xijq32XfEm6FPhUb7RsZYWHc2UuwVkiq"
 
 
 def main() -> None:
     dm = DownloadManager(data_path=Path("./data"))
     dm.download_data(
-        drive_url="https://drive.google.com/uc?id=1xijq32XfEm6FPhUb7RsZYWHc2UuwVkiq"
+        drive_url=DATASET_URL
     )
 
     """clip_model = CLIP()
