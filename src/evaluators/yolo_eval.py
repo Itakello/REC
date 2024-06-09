@@ -24,4 +24,4 @@ class YOLOEvaluator(BaseEvaluator):
             pass
 
     def get_dataloaders(self) -> list[tuple]:
-        return super().get_dataloaders()
+        return []
