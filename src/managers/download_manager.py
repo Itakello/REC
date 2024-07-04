@@ -15,15 +15,18 @@ logger = ItakelloLogging().get_logger(__name__)
 class DownloadManager(BaseClass):
     data_path: Path
     images_path: Path = field(init=False)
+    annotations_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
         self.images_path = self.data_path / "images"
+        self.annotations_path = self.data_path / "annotations"
         super().__post_init__()
         self._create_directories()
 
     def _create_directories(self) -> None:
         self.data_path.mkdir(parents=True, exist_ok=True)
         self.images_path.mkdir(parents=True, exist_ok=True)
+        self.annotations_path.mkdir(parents=True, exist_ok=True)
         logger.debug(f"Created directories: {self.data_path}, {self.images_path}")
 
     def download_data(self, drive_url: str) -> None:
@@ -31,7 +34,7 @@ class DownloadManager(BaseClass):
 
         # Download the tar.gz file
         logger.info(f"Downloading data from {drive_url}")
-        gdown.download(drive_url, output=str(compressed_file_name), quiet=False)
+        gdown.download(drive_url, output=str(compressed_file_name), quiet=True)
 
         # Extract the tar.gz file into the target directory
         logger.info(f"Extracting {compressed_file_name}")
@@ -48,10 +51,24 @@ class DownloadManager(BaseClass):
         else:
             logger.warning(f"Source images directory not found: {source_images}")
 
+        # Move the annotations folder to the annotations_path
+        source_annotations = self.data_path / "refcocog" / "annotations"
+        logger.info(
+            f"Moving annotations from {source_annotations} to {self.annotations_path}"
+        )
+        if source_annotations.exists():
+            for item in source_annotations.iterdir():
+                shutil.move(str(item), str(self.annotations_path))
+            shutil.rmtree(source_annotations)
+        else:
+            logger.warning(
+                f"Source annotations directory not found: {source_annotations}"
+            )
+
         # Clean up: remove the tar.gz file and the extracted folder
         logger.info("Cleaning up temporary files")
         compressed_file_name.unlink()
-        # shutil.rmtree(self.data_path / "refcocog", ignore_errors=True)
+        shutil.rmtree(self.data_path / "refcocog", ignore_errors=True)
 
         logger.confirmation("Dataset downloaded and organized successfully")
 
