@@ -1,16 +1,25 @@
-import ast
 import json
 import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from itakello_logging import ItakelloLogging
+from PIL import Image
 from tqdm import tqdm
 
 from ..classes.llm import LLM
 from ..interfaces.base_class import BaseClass
 from ..models.clip import CLIP
+from ..utils.consts import (
+    ANNOTATIONS_PATH,
+    DATA_PATH,
+    IMAGES_PATH,
+    LLM_MODEL,
+    LLM_SYSTEM_PROMPT_PATH,
+)
+from ..utils.create_directory import create_directory
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -19,19 +28,21 @@ logger = ItakelloLogging().get_logger(__name__)
 class PreprocessManager(BaseClass):
     data_path: Path
     images_path: Path
-    annotations_path: Path
+    raw_annotations_path: Path
     llm: LLM
     clip: CLIP
-    preprocessed_path: Path = field(init=False)
+    annotations_path: Path = field(init=False)
+    embeddings_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.preprocessed_path = self.data_path / "annotations.csv"
+        self.annotations_path = self.data_path / "annotations.csv"
+        self.embeddings_path = create_directory(self.data_path / "embeddings")
 
     def process_pickle_to_dataframe(self) -> pd.DataFrame:
-        pickle_file = self.annotations_path / "refs(umd).p"
+        pickle_file = self.raw_annotations_path / "refs(umd).p"
         if not pickle_file.exists():
-            logger.error(f"refs(umd).p not found in {self.annotations_path}")
+            logger.error(f"refs(umd).p not found in {self.raw_annotations_path}")
             return pd.DataFrame()
 
         with open(pickle_file, "rb") as f:
@@ -56,9 +67,9 @@ class PreprocessManager(BaseClass):
         return df
 
     def update_dataframe_with_json_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        instances_file = self.annotations_path / "instances.json"
+        instances_file = self.raw_annotations_path / "instances.json"
         if not instances_file.exists():
-            logger.error(f"instances.json not found in {self.annotations_path}")
+            logger.error(f"instances.json not found in {self.raw_annotations_path}")
             return df
 
         with open(instances_file, "r") as f:
@@ -143,44 +154,63 @@ class PreprocessManager(BaseClass):
         return df
 
     def encode_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        for idx, row in tqdm(df.iterrows(), total=len(df), desc="Encoding features"):
-            # Encode image
-            image = Image.open(self.images_path / row["file_name"]).convert("RGB")
-            image_feature = self.encode_single_image(image)
-            df.at[idx, "image_feature"] = image_feature.tolist()
+        logger.info("Starting feature encoding process")
 
-            # Encode sentences
-            sentences = eval(row["sentences"])
-            sentences_feature = self.clip.encode_sentences(sentences).cpu().numpy()
-            df.at[idx, "sentences_feature"] = sentences_feature.tolist()
+        total_rows = len(df)
+        pbar = tqdm(total=total_rows, desc="Encoding features", unit="row")
+
+        for idx, row in df.iterrows():
+            # Load and encode image
+            image_path = self.images_path / row["file_name"]
+            image = Image.open(image_path).convert("RGB")
+            image_features = self.clip.encode_images(image)
+
+            # Encode original sentences
+            original_sentences = row["sentences"]
+            original_sentences_features = self.clip.encode_sentences(original_sentences)
 
             # Encode comprehensive sentence
-            comp_sentence_feature = self.encode_single_sentence(
-                row["comprehensive_sentence"]
-            )
-            df.at[idx, "comprehensive_sentence_feature"] = (
-                comp_sentence_feature.tolist()
+            comprehensive_sentence = row["comprehensive_sentence"]
+            comprehensive_sentence_features = self.clip.encode_sentences(
+                comprehensive_sentence
             )
 
-            # Encode sentences + comprehensive sentence
-            combined_sentences = sentences + [row["comprehensive_sentence"]]
-            combined_feature = (
-                self.clip.encode_sentences(combined_sentences).cpu().numpy()
-            )
-            df.at[idx, "combined_feature"] = combined_feature.tolist()
+            # Encode combined sentences
+            combined_sentences = original_sentences + [comprehensive_sentence]
+            combined_sentences_features = self.clip.encode_sentences(combined_sentences)
 
+            # Save embeddings
+            embeddings = {
+                "image_features": image_features.cpu().numpy(),
+                "original_sentences_features": original_sentences_features.cpu().numpy(),
+                "comprehensive_sentence_features": comprehensive_sentence_features.cpu().numpy(),
+                "combined_sentences_features": combined_sentences_features.cpu().numpy(),
+            }
+            embedding_path = self.embeddings_path / f"embedding_{idx}.npz"
+            np.savez_compressed(embedding_path, **embeddings)
+
+            # Store the path to embeddings in the DataFrame
+            df.at[idx, "embeddings_path"] = str(
+                embedding_path.relative_to(self.data_path)
+            )
+
+            pbar.update(1)
+
+        pbar.close()
+
+        logger.confirmation("Feature encoding completed successfully")
         return df
 
     def save_dataframe_to_csv(self, df: pd.DataFrame) -> None:
-        df.to_csv(self.preprocessed_path, index=False)
-        logger.confirmation(f"CSV file saved successfully: {self.preprocessed_path}")
+        df.to_csv(self.annotations_path, index=False)
+        logger.confirmation(f"CSV file saved successfully: {self.annotations_path}")
 
     def process_data(self, sample_size: int | None = None) -> None:
         df = self.process_pickle_to_dataframe()
 
         if sample_size is not None:
             df = df.sample(n=min(sample_size, len(df)), random_state=42)
-            logger.info(f"Sampled {len(df)} rows for comprehensive sentence generation")
+            logger.info(f"Sampled {len(df)} rows for testing purposes")
 
         df = self.update_dataframe_with_json_data(df)
         df = self.fix_bboxes(df)
@@ -191,15 +221,15 @@ class PreprocessManager(BaseClass):
 
 if __name__ == "__main__":
     llm = LLM(
-        base_model="llama3",
-        system_prompt_path=Path("prompts/referential-expression-prompt.txt"),
+        base_model=LLM_MODEL,
+        system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
     )
     clip = CLIP()
     pm = PreprocessManager(
-        data_path=Path("./data"),
-        images_path=Path("./data/images"),
-        annotations_path=Path("./data/annotations"),
+        data_path=DATA_PATH,
+        images_path=IMAGES_PATH,
+        raw_annotations_path=ANNOTATIONS_PATH,
         llm=llm,
         clip=clip,
     )
-    pm.process_data(sample_size=2)
+    pm.process_data(sample_size=10)

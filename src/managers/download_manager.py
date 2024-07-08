@@ -7,6 +7,8 @@ import gdown
 from itakello_logging import ItakelloLogging
 
 from ..interfaces.base_class import BaseClass
+from ..utils.consts import DATA_PATH, DATASET_URL
+from ..utils.create_directory import create_directory
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -18,16 +20,9 @@ class DownloadManager(BaseClass):
     annotations_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
-        self.images_path = self.data_path / "images"
-        self.annotations_path = self.data_path / "annotations"
         super().__post_init__()
-        self._create_directories()
-
-    def _create_directories(self) -> None:
-        self.data_path.mkdir(parents=True, exist_ok=True)
-        self.images_path.mkdir(parents=True, exist_ok=True)
-        self.annotations_path.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"Created directories: {self.data_path}, {self.images_path}")
+        self.images_path = create_directory(self.data_path / "images")
+        self.annotations_path = create_directory(self.data_path / "annotations")
 
     def download_data(self, drive_url: str) -> None:
         compressed_file_name = self.data_path / "file.tar.gz"
@@ -74,7 +69,7 @@ class DownloadManager(BaseClass):
 
 
 if __name__ == "__main__":
-    dm = DownloadManager(data_path=Path("./data"))
-    dm.download_data(
-        drive_url="https://drive.google.com/uc?id=1xijq32XfEm6FPhUb7RsZYWHc2UuwVkiq"
+    dm = DownloadManager(
+        data_path=DATA_PATH,
     )
+    dm.download_data(drive_url=DATASET_URL)
