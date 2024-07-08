@@ -5,7 +5,7 @@ from src.managers.download_manager import DownloadManager
 
 # from src.evaluators.yolo_eval import YOLOEvaluator
 from src.managers.preprocess_manager import PreprocessManager
-from src.models.clip import CLIP
+from src.models.clip_model import CLIP
 from src.utils.consts import DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
 
 ItakelloLogging(excluded_modules=[], debug=True)

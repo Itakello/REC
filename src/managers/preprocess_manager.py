@@ -11,10 +11,8 @@ from tqdm import tqdm
 
 from ..classes.llm import LLM
 from ..interfaces.base_class import BaseClass
-from ..models.clip import CLIP
-from ..utils.consts import DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
+from ..models.clip_model import CLIP
 from ..utils.create_directory import create_directory
-from .download_manager import DownloadManager
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -181,19 +179,20 @@ class PreprocessManager(BaseClass):
                 "comprehensive_sentence_features": comprehensive_sentence_features.cpu().numpy(),
                 "combined_sentences_features": combined_sentences_features.cpu().numpy(),
             }
-            embedding_path = self.embeddings_path / f"embedding_{idx}.npz"
+            embedding_filename = f"embedding_{idx}.npz"
+            embedding_path = self.embeddings_path / embedding_filename
             np.savez_compressed(embedding_path, **embeddings)
 
-            # Store the path to embeddings in the DataFrame
-            df.at[idx, "embeddings_path"] = str(
-                embedding_path.relative_to(self.data_path)
-            )
+            # Store only the filename of embeddings in the DataFrame
+            df.at[idx, "embeddings_filename"] = embedding_filename
 
             pbar.update(1)
 
         pbar.close()
 
-        logger.confirmation("Feature encoding completed successfully")
+        logger.confirmation(
+            f"Feature encoding completed and saved successfully: {self.embeddings_path}"
+        )
         return df
 
     def save_dataframe_to_csv(self, df: pd.DataFrame) -> None:
@@ -215,6 +214,10 @@ class PreprocessManager(BaseClass):
 
 
 if __name__ == "__main__":
+
+    from ..utils.consts import DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
+    from .download_manager import DownloadManager
+
     dm = DownloadManager(data_path=DATA_PATH)
     llm = LLM(
         base_model=LLM_MODEL,
