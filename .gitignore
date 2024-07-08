@@ -4,6 +4,7 @@
 **/__pycache__/
 **/logs/
 **/.mypy_cache/
+**/.pytest_cache/
 
 ## Extensions
 *.tar.gz
