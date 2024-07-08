@@ -6,14 +6,14 @@ from src.managers.download_manager import DownloadManager
 # from src.evaluators.yolo_eval import YOLOEvaluator
 from src.managers.preprocess_manager import PreprocessManager
 from src.models.clip import CLIP
-from src.utils.consts import DATA_PATH, DATASET_URL, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
+from src.utils.consts import DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
 
 ItakelloLogging(excluded_modules=[], debug=True)
 
 
 def main() -> None:
     dm = DownloadManager(data_path=DATA_PATH)
-    dm.download_data(drive_url=DATASET_URL)
+    # dm.download_data(drive_url=DATASET_URL)
 
     llm = LLM(
         base_model=LLM_MODEL,

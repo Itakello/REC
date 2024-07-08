@@ -12,14 +12,9 @@ from tqdm import tqdm
 from ..classes.llm import LLM
 from ..interfaces.base_class import BaseClass
 from ..models.clip import CLIP
-from ..utils.consts import (
-    ANNOTATIONS_PATH,
-    DATA_PATH,
-    IMAGES_PATH,
-    LLM_MODEL,
-    LLM_SYSTEM_PROMPT_PATH,
-)
+from ..utils.consts import DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
 from ..utils.create_directory import create_directory
+from .download_manager import DownloadManager
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -220,6 +215,7 @@ class PreprocessManager(BaseClass):
 
 
 if __name__ == "__main__":
+    dm = DownloadManager(data_path=DATA_PATH)
     llm = LLM(
         base_model=LLM_MODEL,
         system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
@@ -227,8 +223,8 @@ if __name__ == "__main__":
     clip = CLIP()
     pm = PreprocessManager(
         data_path=DATA_PATH,
-        images_path=IMAGES_PATH,
-        raw_annotations_path=ANNOTATIONS_PATH,
+        images_path=dm.images_path,
+        raw_annotations_path=dm.annotations_path,
         llm=llm,
         clip=clip,
     )

@@ -1,45 +1,60 @@
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Tuple
+from dataclasses import dataclass, field
+from typing import Any
 
 import pandas as pd
-import torch
-from PIL import Image
+from itakello_logging import ItakelloLogging
 from torch.utils.data import Dataset
-from torchvision.transforms import Compose, Resize, ToTensor
+
+from .base_class import BaseClass
+
+logger = ItakelloLogging().get_logger(__name__)
 
 
-class BaseDataset(Dataset, ABC):
-    def __init__(self, data_path: Path, split: str, transform: Compose = None):
-        self.data_path = data_path
-        self.split = split
-        self.images_path = data_path / "images"
-        self.annotations_path = data_path / "annotations"
-        self.transform = transform or Compose([Resize((224, 224)), ToTensor()])
-        self.data: pd.DataFrame = pd.DataFrame()
+@dataclass
+class BaseDataset(BaseClass, Dataset, ABC):
+    split: str = "train"
+    limit: int = -1
+    data: pd.DataFrame = field(init=False)
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
         self.load_data()
+        self.data = self.data[self.data["split"] == self.split]
+        logger.info(f"Loaded {len(self.data)} {self.split} samples")
+        if self.limit != -1:
+            self.data = self.data.sample(
+                n=min(self.limit, len(self.data)), random_state=42
+            )
+            logger.info(f"Limited to {len(self.data)} samples")
 
     @abstractmethod
     def load_data(self) -> None:
-        """Load data from files and populate self.data DataFrame"""
+        """
+        Load the dataset from a source (e.g., file, database).
+        This method should be implemented by subclasses.
+        """
         pass
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, str, torch.Tensor]:
+    @abstractmethod
+    def __getitem__(self, index: int) -> dict[str, Any]:
         """
-        Return a tuple of (image, sentence, bounding_box)
+        Get an item from the dataset at the specified index.
+        This method should be implemented by subclasses.
 
-        image: torch.Tensor representing the image
-        sentence: str representing the referring expression
-        bounding_box: torch.Tensor of shape (4,) representing [x1, y1, x2, y2]
+        Args:
+            index (int): The index of the item to retrieve.
+
+        Returns:
+            dict[str, Any]: A dictionary containing the item data.
         """
-        row = self.data.iloc[idx]
-        image_path = self.images_path / f"{row['image_id']}.jpg"
-        image = Image.open(image_path).convert("RGB")
-
-        if self.transform:
-            image = self.transform(image)
-
-        return image, row["sentence"], row["bbox"]
+        pass
 
     def __len__(self) -> int:
+        """
+        Get the total number of items in the dataset.
+
+        Returns:
+            int: The number of items in the dataset.
+        """
         return len(self.data)
