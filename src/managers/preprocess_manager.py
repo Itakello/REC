@@ -11,7 +11,8 @@ from tqdm import tqdm
 
 from ..classes.llm import LLM
 from ..interfaces.base_class import BaseClass
-from ..models.clip_model import CLIP
+from ..models.clip_model import ClipModel
+from ..utils.consts import CLIP_MODEL, MODELS_PATH
 from ..utils.create_directory import create_directory
 
 logger = ItakelloLogging().get_logger(__name__)
@@ -23,7 +24,7 @@ class PreprocessManager(BaseClass):
     images_path: Path
     raw_annotations_path: Path
     llm: LLM
-    clip: CLIP
+    clip: ClipModel
     annotations_path: Path = field(init=False)
     embeddings_path: Path = field(init=False)
 
@@ -223,7 +224,7 @@ if __name__ == "__main__":
         base_model=LLM_MODEL,
         system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
     )
-    clip = CLIP()
+    clip = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
     pm = PreprocessManager(
         data_path=DATA_PATH,
         images_path=dm.images_path,

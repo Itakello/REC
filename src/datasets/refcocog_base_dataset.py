@@ -95,7 +95,7 @@ if __name__ == "__main__":
     from ..classes.llm import LLM
     from ..managers.download_manager import DownloadManager
     from ..managers.preprocess_manager import PreprocessManager
-    from ..models.clip_model import CLIP
+    from ..models.clip_model import ClipModel
     from ..utils.consts import DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
 
     dm = DownloadManager(data_path=DATA_PATH)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         base_model=LLM_MODEL,
         system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
     )
-    clip = CLIP()
+    clip = ClipModel()
     pm = PreprocessManager(
         data_path=DATA_PATH,
         images_path=dm.images_path,

@@ -27,7 +27,7 @@
             "name": "Python: CLIP",
             "type": "debugpy",
             "request": "launch",
-            "module": "src.models.clip",
+            "module": "src.models.clip_model",
             "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
@@ -39,6 +39,39 @@
             "type": "debugpy",
             "request": "launch",
             "module": "src.datasets.refcocog_base_dataset",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: YOLO Model",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.models.yolo_model",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: YOLO Benchmark Dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.datasets.yolo_benchmark_dataset",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: YOLO Eval",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.evaluations.yolo_eval",
             "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"

@@ -7,22 +7,23 @@ from itakello_logging import ItakelloLogging
 from PIL import Image
 from torchvision.transforms import Compose
 
-from ..interfaces.base_class import BaseClass
-from ..utils.consts import DEVICE
+from ..interfaces.base_model import BaseModel
+from ..utils.consts import CLIP_MODEL, DEVICE, MODELS_PATH
 
 logger = ItakelloLogging().get_logger(__name__)
 
-CLIP_MODEL = "RN50"
-
 
 @dataclass
-class CLIP(BaseClass):
+class ClipModel(BaseModel):
+    name: str = "clip"
     model: torch.nn.Module = field(init=False)
     preprocess: Compose = field(init=False)
 
     def __post_init__(self) -> None:
-        self.model, self.preprocess = clip.load(CLIP_MODEL, device=DEVICE)
         super().__post_init__()
+        self.model, self.preprocess = clip.load(
+            self.version, device=DEVICE, download_root=str(self.model_path)
+        )
 
     def encode_sentences(self, sentences: str | list[str]) -> torch.Tensor:
         if isinstance(sentences, str):
@@ -76,7 +77,7 @@ class CLIP(BaseClass):
 
 if __name__ == "__main__":
     # Initialize CLIP
-    clip_model = CLIP()
+    clip_model = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
 
     # Define image paths and sentences
     image_dir = Path("data/images")

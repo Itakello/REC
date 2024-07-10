@@ -2,11 +2,19 @@ from itakello_logging import ItakelloLogging
 
 from src.classes.llm import LLM
 from src.managers.download_manager import DownloadManager
-
-# from src.evaluators.yolo_eval import YOLOEvaluator
 from src.managers.preprocess_manager import PreprocessManager
-from src.models.clip_model import CLIP
-from src.utils.consts import DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
+from src.models.clip_model import ClipModel
+from src.utils.consts import (
+    CLIP_MODEL,
+    DATA_PATH,
+    IOU_THRESHOLDS,
+    LLM_MODEL,
+    LLM_SYSTEM_PROMPT_PATH,
+    MODELS_PATH,
+    YOLO_VERSIONS,
+)
+
+from .src.evaluations.yolo_eval import YOLOBenchmarkEval
 
 ItakelloLogging(excluded_modules=[], debug=True)
 
@@ -19,7 +27,7 @@ def main() -> None:
         base_model=LLM_MODEL,
         system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
     )
-    clip = CLIP()
+    clip = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
     pm = PreprocessManager(
         data_path=DATA_PATH,
         images_path=dm.images_path,
@@ -29,13 +37,12 @@ def main() -> None:
     )
     pm.process_data(sample_size=100)
 
-    """
-    yolo_eval = YOLOEvaluator(
-        eval_name="yolo_baseline",
-        yolo_versions=YOLO_VERSIONS,
+    evaluator = YOLOBenchmarkEval(
         iou_thresholds=IOU_THRESHOLDS,
+        yolo_versions=YOLO_VERSIONS,
     )
-    yolo_eval.evaluate()"""
+    metrics = evaluator.evaluate()
+    print(metrics)
 
 
 if __name__ == "__main__":

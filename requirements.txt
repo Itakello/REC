@@ -8,7 +8,6 @@ opencv-python
 PyYAML
 ultralytics
 gdown
-tensorboard
 torch-tb-profiler
 scikit-learn
 requests

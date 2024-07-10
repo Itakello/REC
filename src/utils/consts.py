@@ -6,6 +6,7 @@ import torch
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 WANDB_PROJECT = "REC-June"
+CLIP_MODEL = "RN50"
 
 # Default parameters
 DEFAULT_IOU_THRESHOLD = 0.5
@@ -18,7 +19,7 @@ NUM_HEADS = 8
 # Selection modality parameters
 
 BLUR_INTENSITY = 5
-LINE_WIDTH = 4
+LINE_WIDTH = 2
 
 # Hyperarameters
 
@@ -26,16 +27,16 @@ SELECTION_MODALITIES = ["blur", "ellipse", "crop", "blackout", "rectangle"]
 SENTENCES_TYPES = ["default", "new", "combined"]
 LEARNING_RATES = [0.001, 0.01, 0.1]
 YOLO_VERSIONS = [
-    "yolov5nu.pt",
-    "yolov5su.pt",
-    "yolov5mu.pt",
-    "yolov5lu.pt",
-    "yolov5xu.pt",
-    "yolov8n.pt",
-    "yolov8s.pt",
-    "yolov8m.pt",
-    "yolov8l.pt",
-    "yolov8x.pt",
+    "yolov5nu",
+    "yolov5su",
+    "yolov5mu",
+    "yolov5lu",
+    "yolov5xu",
+    "yolov8n",
+    "yolov8s",
+    "yolov8m",
+    "yolov8l",
+    "yolov8x",
 ]
 IOU_THRESHOLDS = [0.1, 0.3, 0.5, 0.7, 0.9]
 
@@ -45,6 +46,7 @@ LLM_MODEL = "llama3"
 
 # Paths
 DATA_PATH = Path("./data")
+MODELS_PATH = Path("./models")
 LLM_SYSTEM_PROMPT_PATH = Path("prompts/referential-expression-prompt.txt")
 
 # URLS
