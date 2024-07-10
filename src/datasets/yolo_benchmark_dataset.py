@@ -9,7 +9,7 @@ from .refcocog_base_dataset import RefCOCOgBaseDataset
 
 
 @dataclass
-class YOLOBenchmarkDataset(RefCOCOgBaseDataset):
+class YOLOBaselineDataset(RefCOCOgBaseDataset):
     def __getitem__(self, index: int) -> dict:
         row = self.data.iloc[index]
 

@@ -7,6 +7,7 @@ from src.models.clip_model import ClipModel
 from src.utils.consts import (
     CLIP_MODEL,
     DATA_PATH,
+    DATASET_URL,
     IOU_THRESHOLDS,
     LLM_MODEL,
     LLM_SYSTEM_PROMPT_PATH,
@@ -14,14 +15,14 @@ from src.utils.consts import (
     YOLO_VERSIONS,
 )
 
-from .src.evaluations.yolo_eval import YOLOBenchmarkEval
+from .src.evaluations.yolo_eval import YOLOBaselineEval
 
 ItakelloLogging(excluded_modules=[], debug=True)
 
 
 def main() -> None:
     dm = DownloadManager(data_path=DATA_PATH)
-    # dm.download_data(drive_url=DATASET_URL)
+    dm.download_data(drive_url=DATASET_URL)
 
     llm = LLM(
         base_model=LLM_MODEL,
@@ -37,7 +38,7 @@ def main() -> None:
     )
     pm.process_data(sample_size=100)
 
-    evaluator = YOLOBenchmarkEval(
+    evaluator = YOLOBaselineEval(
         iou_thresholds=IOU_THRESHOLDS,
         yolo_versions=YOLO_VERSIONS,
     )

@@ -5,7 +5,7 @@ import torch
 # from torch.optim import Adam, AdamW
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-WANDB_PROJECT = "REC-June"
+WANDB_PROJECT = "REC"
 CLIP_MODEL = "RN50"
 
 # Default parameters

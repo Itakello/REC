@@ -1,7 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterator
-
-from _collections_abc import dict_items
+from typing import Iterator
 
 
 @dataclass
@@ -15,7 +13,7 @@ class Metric:
 
 @dataclass
 class Metrics:
-    metrics: Dict[str, Metric] = field(default_factory=dict)
+    metrics: dict[str, Metric] = field(default_factory=dict)
 
     def add(self, name: str, value: float) -> None:
         self.metrics[name] = Metric(name, value)
@@ -29,8 +27,8 @@ class Metrics:
     def __iter__(self) -> Iterator[Metric]:
         return iter(self.metrics.values())
 
-    def items(self) -> dict_items[str, Metric]:
-        return self.metrics.items()
+    def items(self) -> Iterator[tuple[str, Metric]]:
+        return self.metrics.items()  # type: ignore
 
     def __str__(self) -> str:
         return "\n".join(str(metric) for metric in self.metrics.values())

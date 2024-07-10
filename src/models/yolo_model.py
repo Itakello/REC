@@ -6,7 +6,7 @@ from PIL import Image
 from ultralytics import YOLO
 from ultralytics.engine.results import Boxes
 
-from ..datasets.yolo_benchmark_dataset import YOLOBenchmarkDataset
+from ..datasets.yolo_benchmark_dataset import YOLOBaselineDataset
 from ..interfaces.base_model import BaseModel
 from ..utils.consts import DATA_PATH, DEVICE, MODELS_PATH
 from ..utils.save_sample import save_and_visualize_image_with_bboxes
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     yolo_model = YOLOModel(version="yolov5mu", models_path=MODELS_PATH)
 
     # Initialize the YOLOBenchmarkDataset
-    dataset = YOLOBenchmarkDataset(
+    dataset = YOLOBaselineDataset(
         annotations_path=DATA_PATH / "annotations.csv",
         images_path=DATA_PATH / "images",
         embeddings_path=DATA_PATH / "embeddings",
