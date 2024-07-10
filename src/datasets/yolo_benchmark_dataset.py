@@ -28,7 +28,7 @@ class YOLOBenchmarkDataset(RefCOCOgBaseDataset):
             collated_batch["images"].append(item["image"])
             collated_batch["bboxes"].append(torch.tensor(item["bbox"]))
 
-        collated_batch["bboxes"] = torch.stack(collated_batch["bboxes"])
+        collated_batch["bboxes"] = torch.stack(collated_batch["bboxes"])  # type: ignore
 
         return collated_batch
 

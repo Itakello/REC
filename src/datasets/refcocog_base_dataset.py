@@ -8,6 +8,7 @@ from itakello_logging import ItakelloLogging
 from PIL import Image
 
 from ..interfaces.base_dataset import BaseDataset
+from ..utils.consts import CLIP_MODEL, MODELS_PATH
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -35,7 +36,7 @@ class RefCOCOgBaseDataset(BaseDataset):
         logger.info(f"Filtered to {len(self.data)} {self.split} samples")
         if self.limit > 0:
             self.data = self.data.sample(
-                n=min(self.limit, len(self.data)), random_state=42
+                n=min(self.limit, self.data.__len__()), random_state=42
             )
             logger.info(f"Limited to {len(self.data)} samples")
 
@@ -104,7 +105,7 @@ if __name__ == "__main__":
         base_model=LLM_MODEL,
         system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
     )
-    clip = ClipModel()
+    clip = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
     pm = PreprocessManager(
         data_path=DATA_PATH,
         images_path=dm.images_path,
