@@ -1,6 +1,9 @@
+import os
+
 from itakello_logging import ItakelloLogging
 
 from src.classes.llm import LLM
+from src.evaluations.yolo_eval import YOLOBaselineEval
 from src.managers.download_manager import DownloadManager
 from src.managers.preprocess_manager import PreprocessManager
 from src.models.clip_model import ClipModel
@@ -15,14 +18,16 @@ from src.utils.consts import (
     YOLO_VERSIONS,
 )
 
-from .src.evaluations.yolo_eval import YOLOBaselineEval
+from .src.models.yolo_model import YOLOModel
 
 ItakelloLogging(excluded_modules=[], debug=True)
+
+os.environ["WANDB_SILENT"] = "true"
 
 
 def main() -> None:
     dm = DownloadManager(data_path=DATA_PATH)
-    dm.download_data(drive_url=DATASET_URL)
+    # dm.download_data(drive_url=DATASET_URL)
 
     llm = LLM(
         base_model=LLM_MODEL,
@@ -36,14 +41,18 @@ def main() -> None:
         llm=llm,
         clip=clip,
     )
-    pm.process_data(sample_size=100)
+    # pm.process_data(sample_size=100)
 
-    evaluator = YOLOBaselineEval(
+    yolo_baseline_eval = YOLOBaselineEval(
         iou_thresholds=IOU_THRESHOLDS,
         yolo_versions=YOLO_VERSIONS,
     )
-    metrics = evaluator.evaluate()
-    print(metrics)
+    metrics = yolo_baseline_eval.evaluate()
+
+    # NOTE: 1 - Choose YOLO model and IOU threshold
+
+    yolo_model = YOLOModel(version="yolov5mu", models_path=MODELS_PATH)
+    iou_threshold = 0.5
 
 
 if __name__ == "__main__":

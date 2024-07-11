@@ -1,15 +1,18 @@
 from dataclasses import dataclass, field
 
+from itakello_logging import ItakelloLogging
 from torch.utils.data import DataLoader
 
 import wandb
 
 from ..classes.metric import Metrics
-from ..datasets.yolo_benchmark_dataset import YOLOBaselineDataset
+from ..datasets.yolo_baseline_dataset import YOLOBaselineDataset
 from ..interfaces.base_eval import BaseEval
 from ..models.yolo_model import YOLOModel
 from ..utils.calculate_iou import calculate_iou
 from ..utils.consts import DATA_PATH, MODELS_PATH, WANDB_PROJECT
+
+logger = ItakelloLogging().get_logger(__name__)
 
 
 @dataclass
@@ -78,6 +81,7 @@ class YOLOBaselineEval(BaseEval):
                 metrics[version].add(f"iou_{iou}", value / total_samples)
 
         self.log_metrics(metrics)
+        logger.confirmation("Yolo evaluation completed")
         return metrics
 
     def log_metrics(self, metrics: Metrics | dict[str, Metrics]) -> None:

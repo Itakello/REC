@@ -6,7 +6,7 @@ from PIL import Image
 from ultralytics import YOLO
 from ultralytics.engine.results import Boxes
 
-from ..datasets.yolo_benchmark_dataset import YOLOBaselineDataset
+from ..datasets.yolo_baseline_dataset import YOLOBaselineDataset
 from ..interfaces.base_model import BaseModel
 from ..utils.consts import DATA_PATH, DEVICE, MODELS_PATH
 from ..utils.save_sample import save_and_visualize_image_with_bboxes
