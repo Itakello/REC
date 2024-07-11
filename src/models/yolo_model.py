@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import torch
 from itakello_logging import ItakelloLogging
@@ -9,6 +10,7 @@ from ultralytics.engine.results import Boxes
 from ..datasets.yolo_baseline_dataset import YOLOBaselineDataset
 from ..interfaces.base_model import BaseModel
 from ..utils.consts import DATA_PATH, DEVICE, MODELS_PATH
+from ..utils.create_directory import create_directory
 from ..utils.save_sample import save_and_visualize_image_with_bboxes
 
 logger = ItakelloLogging().get_logger(__name__)
@@ -60,7 +62,9 @@ if __name__ == "__main__":
     logger.info(f"Ground truth bbox: {gt_bbox}")
     logger.info(f"Predicted bboxes: {predicted_bboxes}")
 
+    samples_dir = create_directory(Path("./samples"))
+
     # Save and visualize the results
     save_and_visualize_image_with_bboxes(
-        image, gt_bbox, predicted_bboxes, "yolo_prediction_result.png"
+        image, gt_bbox, predicted_bboxes, samples_dir / "yolo_prediction_result.jpg"
     )

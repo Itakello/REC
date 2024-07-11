@@ -4,7 +4,6 @@ from typing import Any
 import torch
 from PIL import Image
 
-from ..utils.consts import MODELS_PATH
 from .refcocog_base_dataset import RefCOCOgBaseDataset
 
 
@@ -36,34 +35,14 @@ class YOLOBaselineDataset(RefCOCOgBaseDataset):
 if __name__ == "__main__":
     from pprint import pprint
 
-    from ..classes.llm import LLM
-    from ..managers.download_manager import DownloadManager
-    from ..managers.preprocess_manager import PreprocessManager
-    from ..models.clip_model import ClipModel
-    from ..utils.consts import CLIP_MODEL, DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
+    from ..utils.consts import DATA_PATH
 
-    dm = DownloadManager(data_path=DATA_PATH)
-
-    llm = LLM(
-        base_model=LLM_MODEL,
-        system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
-    )
-    clip = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
-    pm = PreprocessManager(
-        data_path=DATA_PATH,
-        images_path=dm.images_path,
-        raw_annotations_path=dm.annotations_path,
-        llm=llm,
-        clip=clip,
-    )
-
-    # Create a sample dataset
-    dataset = RefCOCOgBaseDataset(
-        annotations_path=pm.annotations_path,
-        images_path=pm.images_path,
-        embeddings_path=pm.embeddings_path,
+    dataset = YOLOBaselineDataset(
+        annotations_path=DATA_PATH / "annotations.csv",
+        images_path=DATA_PATH / "images",
+        embeddings_path=DATA_PATH / "embeddings",
         split="train",
-        limit=10,
+        limit=1,
     )
 
     print(f"Dataset length: {len(dataset)}")

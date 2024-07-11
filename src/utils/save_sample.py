@@ -1,24 +1,30 @@
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import torch
 from PIL import Image
 
-from .selection_modality import SelectionModality
+from ..classes.highlighting_modality import HighlightingModality
 
 
 def save_and_visualize_image_with_bboxes(
     image: Image.Image,
     gt_bbox: list[float],
     pred_bboxes: list[list[float]] | torch.Tensor,
-    file_name: str = "output_image.png",
+    path: Path,
 ) -> None:
     # Create a copy of the image to draw on
     draw_image = image.copy()
 
     # Draw ground truth bounding box in green
-    draw_image = SelectionModality.draw_rectangles(draw_image, [gt_bbox], color="green")
+    draw_image = HighlightingModality.draw_rectangles(
+        draw_image, [gt_bbox], color="green"
+    )
 
     # Draw predicted bounding boxes in red
-    draw_image = SelectionModality.draw_rectangles(draw_image, pred_bboxes, color="red")
+    draw_image = HighlightingModality.draw_rectangles(
+        draw_image, pred_bboxes, color="red"
+    )
 
     # Create figure and axes
     fig, ax = plt.subplots(figsize=(10, 10))
@@ -33,7 +39,7 @@ def save_and_visualize_image_with_bboxes(
     ax.legend()
 
     # Save the figure
-    plt.savefig(file_name, bbox_inches="tight", pad_inches=0.1)
+    plt.savefig(path, bbox_inches="tight", pad_inches=0.1)
     plt.close(fig)
 
-    print(f"Image saved to {file_name}")
+    print(f"Image saved to {path}")

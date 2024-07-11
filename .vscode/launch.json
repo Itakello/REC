@@ -77,6 +77,17 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Highliting Modality",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.classes.highlighting_modality",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
         }
     ]
 }
