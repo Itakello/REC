@@ -106,10 +106,10 @@ if __name__ == "__main__":
         base_model="llama3",
         system_prompt_path=Path("prompts/referential-expression-prompt.txt"),
     )
-    new_sentence = llm.generate(
-        [
-            "A blonde woman in a white shirt and long black skirt.",
-            "There is one small girl wearing white top is touching the elephant",
-        ]
-    )
-    print(new_sentence)
+    starting_sentences = [
+        "A blonde woman in a white shirt and long black skirt.",
+        "There is one small girl wearing white top is touching the elephant",
+    ]
+    new_sentence = llm.generate(starting_sentences)
+    print(f"Starting sentences: [{', '.join(starting_sentences)}]")
+    print(f"Comprehensive sentence: {new_sentence}")

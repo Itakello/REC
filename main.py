@@ -3,7 +3,7 @@ import os
 from itakello_logging import ItakelloLogging
 
 from src.classes.llm import LLM
-from src.evaluations.yolo_eval import YOLOBaselineEval
+from src.evaluations.yolo_baseline_eval import YOLOBaselineEval
 from src.managers.download_manager import DownloadManager
 from src.managers.preprocess_manager import PreprocessManager
 from src.models.clip_model import ClipModel

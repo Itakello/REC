@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from ..datasets.yolo_baseline_dataset import YOLOBaselineDataset
 from ..interfaces.base_class import BaseClass
-from ..utils.consts import BLUR_INTENSITY, DATA_PATH, LINE_WIDTH
+from ..utils.consts import BLUR_INTENSITY, DATA_PATH, HIGHLIGHTING_METHODS, LINE_WIDTH
 from ..utils.create_directory import create_directory
 
 
@@ -136,10 +135,10 @@ class HighlightingModality(BaseClass):
         image: Image.Image,
         bboxes: list[list[float]] | torch.Tensor,
         method: str,
-    ) -> Any:
+    ) -> Image.Image:
         if method == "rectangle":
             return HighlightingModality.draw_rectangles(image, bboxes)
-        elif method == "circle":
+        elif method == "ellipse":
             return HighlightingModality.draw_circles(image, bboxes)
         elif method == "blur":
             return HighlightingModality.blur(image, bboxes)
@@ -166,9 +165,6 @@ if __name__ == "__main__":
     image = dataset[0]["image"]
     bbox = dataset[0]["bbox"]
 
-    # Test all highlighting methods
-    methods = ["rectangle", "circle", "blur", "crop", "blackout"]
-
     fig, axs = plt.subplots(1, 6, figsize=(20, 4))
     fig.suptitle("Highlighting Modality Results")
 
@@ -177,7 +173,7 @@ if __name__ == "__main__":
     axs[0].set_title("Original Image")
     axs[0].axis("off")
 
-    for i, method in enumerate(methods, start=1):
+    for i, method in enumerate(HIGHLIGHTING_METHODS, start=1):
         result = HighlightingModality.apply_highlighting(image.copy(), bbox, method)
         axs[i].imshow(result)
         axs[i].set_title(method.capitalize())

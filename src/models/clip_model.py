@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import clip
 import torch
@@ -25,7 +24,9 @@ class ClipModel(BaseModel):
             self.version, device=DEVICE, download_root=str(self.model_path)
         )
 
-    def encode_sentences(self, sentences: str | list[str]) -> torch.Tensor:
+    def encode_sentences(
+        self, sentences: str | list[str], average: bool = False
+    ) -> torch.Tensor:
         if isinstance(sentences, str):
             sentences = [sentences]
 
@@ -34,9 +35,15 @@ class ClipModel(BaseModel):
 
         # Encode the sentences using CLIP
         with torch.no_grad():
-            text_features = self.model.encode_text(text)
+            text_features = self.model.encode_text(text).to(DEVICE)
 
-        text_features = text_features.float().to(DEVICE)
+        if text_features.dim() == 1:
+            text_features = text_features.unsqueeze(0)
+
+        # Average the features if there are multiple sentences
+        if average:
+            text_features = text_features.mean(dim=0, keepdim=True)
+
         logger.debug(
             f"Sentences encoded: {len(sentences)} | Shape: {text_features.shape}"
         )
@@ -53,78 +60,163 @@ class ClipModel(BaseModel):
 
         # Encode the images using CLIP
         with torch.no_grad():
-            image_features = self.model.encode_image(image_input)
+            image_features = self.model.encode_image(image_input).to(DEVICE)
 
-        image_features = image_features.float().to(DEVICE)
+        if image_features.dim() == 1:
+            image_features = image_features.unsqueeze(0)
+
         logger.debug(f"Images encoded: {len(images)} | Shape: {image_features.shape}")
         return image_features
 
     def get_similarity(
-        self, images: Image.Image | list[Image.Image], texts: str | list[str]
+        self,
+        image_features: torch.Tensor,
+        text_features: torch.Tensor,
     ) -> torch.Tensor:
-        image_features = self.encode_images(images)
-        text_features = self.encode_sentences(texts)
+        """
+        Compute cosine similarity between image and text features.
 
-        # Normalize features
-        image_features /= image_features.norm(dim=-1, keepdim=True)
-        text_features /= text_features.norm(dim=-1, keepdim=True)
+        Args:
+            image_features: Tensor of shape (N, D) or (B, N, D)
+                where N is the number of images, D is the feature dimension,
+                and B is an optional batch dimension.
+            text_features: Tensor of shape (M, D) or (B, M, D)
+                where M is the number of texts, D is the feature dimension,
+                and B is an optional batch dimension.
 
-        # Compute cosine similarity
-        similarity = image_features @ text_features.T
+        Returns:
+            Tensor of shape (N, M) or (B, N, M) containing cosine similarities.
+        """
+        # Ensure inputs are at least 2D
+        if image_features.dim() == 1:
+            image_features = image_features.unsqueeze(0)
+        if text_features.dim() == 1:
+            text_features = text_features.unsqueeze(0)
+
+        # Normalize featyures
+        image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+        if image_features.dim() == 3 and text_features.dim() == 3:
+            # Batch processing
+            # Compute cosine similarity
+            similarity = torch.bmm(image_features, text_features.transpose(1, 2))
+        else:
+            # Non-batch processing
+            # Compute cosine similarity
+            similarity = torch.mm(image_features, text_features.T)
 
         return similarity
 
 
 if __name__ == "__main__":
+    import torch
+    from torch.utils.data import DataLoader
+
+    from ..datasets.refcocog_base_dataset import RefCOCOgBaseDataset
+    from ..utils.consts import DATA_PATH
+
     # Initialize CLIP
     clip_model = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
 
-    # Define image paths and sentences
-    image_dir = Path("data/images")
-    image_paths = [
-        image_dir / "COCO_train2014_000000352312.jpg",
-        image_dir / "COCO_train2014_000000426640.jpg",
-    ]
-    sentences = [
-        "A polar bear is pondering going down the ramp and into the water.",
-        "big bear",
-    ]
+    # Initialize the dataset
+    dataset = RefCOCOgBaseDataset(
+        annotations_path=DATA_PATH / "annotations.csv",
+        images_path=DATA_PATH / "images",
+        embeddings_path=DATA_PATH / "embeddings",
+        split="train",
+        limit=10,  # Limit to 10 samples for testing
+    )
 
-    # Test single image encoding
-    single_image = Image.open(image_paths[0])
-    single_image_features = clip_model.encode_images(single_image)
-    print(f"Single image features shape: {single_image_features.shape}")
+    # Create a DataLoader
+    dataloader = DataLoader(
+        dataset, batch_size=2, shuffle=True, collate_fn=dataset.collate_fn
+    )
 
-    # Test multiple image encoding
-    images = [Image.open(path) for path in image_paths]
-    multi_image_features = clip_model.encode_images(images)  # type: ignore
-    print(f"Multiple image features shape: {multi_image_features.shape}")
+    # Test different scenarios
+    for batch in dataloader:
+        # 1. Single image, single text
+        single_image = batch["images"][0]
+        single_text = batch["comprehensive_sentences"][0]
 
-    # Test single sentence encoding
-    single_sentence_features = clip_model.encode_sentences(sentences[0])
-    print(f"Single sentence features shape: {single_sentence_features.shape}")
+        single_image_feature = clip_model.encode_images(single_image)
+        single_text_feature = clip_model.encode_sentences(single_text)
 
-    # Test multiple sentence encoding
-    multi_sentence_features = clip_model.encode_sentences(sentences)
-    print(f"Multiple sentence features shape: {multi_sentence_features.shape}")
+        single_similarity = clip_model.get_similarity(
+            single_image_feature, single_text_feature
+        )
+        print(
+            "Single image, single text similarity shape:", single_similarity.shape
+        )  # Expected: [1, 1]
 
-    # Test similarity
-    # Compare sentences with first image
-    similarity_first = clip_model.get_similarity(images[0], sentences)
-    print(f"Similarity with first image:\n{similarity_first}")
+        # 2. Multiple images, single text
+        multi_image_features = clip_model.encode_images(batch["images"])
+        multi_single_similarity = clip_model.get_similarity(
+            multi_image_features, single_text_feature
+        )
+        print(
+            "Multiple images, single text similarities shape:",
+            multi_single_similarity.shape,
+        )  # Expected: [2, 1]
 
-    # Compare sentences with second image
-    similarity_second = clip_model.get_similarity(images[1], sentences)
-    print(f"Similarity with second image:\n{similarity_second}")
+        # 3a. Single image, multiple texts (same sample)
+        single_image_feature = clip_model.encode_images(batch["images"][0])
+        same_sample_texts = batch["sentences"][0]  # Multiple texts
+        same_sample_text_features = clip_model.encode_sentences(
+            same_sample_texts, average=True
+        )
+        single_multi_same_similarity = clip_model.get_similarity(
+            single_image_feature, same_sample_text_features
+        )
+        print(
+            "Single image, multiple texts (same sample) similarities shape:",
+            single_multi_same_similarity.shape,
+        )  # Expected: [1, 1]
 
-    # Compare sentences with both images
-    similarity_both = clip_model.get_similarity(images, sentences)  # type: ignore
-    print(f"Similarity with both images:\n{similarity_both}")
+        # 3b. Single image, multiple texts (different samples)
+        different_sample_text_features = clip_model.encode_sentences(
+            [batch["comprehensive_sentences"][0], batch["comprehensive_sentences"][1]]
+        )
+        single_multi_diff_similarity = clip_model.get_similarity(
+            single_image_feature, different_sample_text_features
+        )
+        print(
+            "Single image, multiple texts (different samples) similarities shape:",
+            single_multi_diff_similarity.shape,
+        )  # Expected: [1, 2]
 
-    # Check if sentences are more similar to the first image
-    is_more_similar = torch.all(similarity_both[0] > similarity_both[1])
-    print(f"Sentences are more similar to the first image: {is_more_similar}")
+        # 4. Multiple images, multiple texts (batch processing)
+        multi_text_features = clip_model.encode_sentences(
+            batch["comprehensive_sentences"]
+        )
+        batch_similarities = clip_model.get_similarity(
+            multi_image_features, multi_text_features
+        )
+        print("Batch similarities shape:", batch_similarities.shape)  # Expected: [2, 2]
 
-    # Print the difference in similarities
-    similarity_diff = similarity_both[0] - similarity_both[1]
-    print(f"Difference in similarities (first - second):\n{similarity_diff}")
+        # 5. Test with embeddings from the dataset
+        image_embeddings = torch.stack(
+            [torch.from_numpy(emb["image_features"]) for emb in batch["embeddings"]]
+        )
+        text_embeddings = torch.stack(
+            [
+                torch.from_numpy(emb["comprehensive_sentence_features"])
+                for emb in batch["embeddings"]
+            ]
+        )
+        image_embeddings = image_embeddings.squeeze(1)
+        text_embeddings = text_embeddings.squeeze(1)
+
+        dataset_similarities = clip_model.get_similarity(
+            image_embeddings, text_embeddings
+        )
+        print(
+            "Dataset embeddings similarities shape:", dataset_similarities.shape
+        )  # Expected: [2, 2]
+        print("Image embeddings shape:", image_embeddings.shape)  # [2, 1024]
+        print("Text embeddings shape:", text_embeddings.shape)  # [2, 1024]
+
+        # Only process one batch for this test
+        break
+
+    print("All tests completed successfully!")

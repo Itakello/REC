@@ -1,14 +1,17 @@
+import ast
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
+import torch
 from itakello_logging import ItakelloLogging
 from PIL import Image
 
 from ..interfaces.base_dataset import BaseDataset
-from ..utils.consts import CLIP_MODEL, MODELS_PATH
+from ..utils.consts import DEVICE
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -51,7 +54,7 @@ class RefCOCOgBaseDataset(BaseDataset):
 
     def get_embeddings(
         self, embeddings_filename: str, keys: list[str] | None = None
-    ) -> dict:
+    ) -> dict[str, torch.Tensor]:
         full_path = self.embeddings_path / embeddings_filename
         embeddings = np.load(full_path)
 
@@ -62,65 +65,77 @@ class RefCOCOgBaseDataset(BaseDataset):
         for key in keys:
             if key not in embeddings:
                 raise KeyError(f"Embedding key '{key}' not found in {full_path}")
-            result[key] = embeddings[key]
+            result[key] = torch.from_numpy(embeddings[key]).to(DEVICE)
 
         return result
+
+    def get_sentences(self, sentences: str) -> list[str]:
+        return ast.literal_eval(sentences)
 
     def __getitem__(self, index: int) -> dict:
         row = self.data.iloc[index]
 
         image_path = self.get_image_path(row["file_name"])
         image = Image.open(image_path).convert("RGB")
-
         bbox = self.get_bbox(row["bbox"])
-
         embeddings = self.get_embeddings(row["embeddings_filename"])
+        sentences = self.get_sentences(row["sentences"])
 
         return {
             "image": image,
             "bbox": bbox,
             "file_name": row["file_name"],
             "embeddings": embeddings,
-            "sentences": row["sentences"],
+            "sentences": sentences,
             "comprehensive_sentence": row["comprehensive_sentence"],
             "category": row["category"],
             "supercategory": row["supercategory"],
             "area": row["area"],
         }
 
+    @staticmethod
+    def collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]:
+        collated_batch = {
+            "images": [],
+            "bboxes": [],
+            "embeddings": [],
+            "file_names": [],
+            "sentences": [],
+            "comprehensive_sentences": [],
+            "categories": [],
+            "supercategories": [],
+            "areas": [],
+        }
+        for item in batch:
+            collated_batch["images"].append(item["image"])
+            collated_batch["bboxes"].append(torch.tensor(item["bbox"]))
+            collated_batch["embeddings"].append(item["embeddings"])
+            collated_batch["file_names"].append(item["file_name"])
+            collated_batch["sentences"].append(item["sentences"])
+            collated_batch["comprehensive_sentences"].append(
+                item["comprehensive_sentence"]
+            )
+            collated_batch["categories"].append(item["category"])
+            collated_batch["supercategories"].append(item["supercategory"])
+            collated_batch["areas"].append(item["area"])
+
+        collated_batch["bboxes"] = torch.stack(collated_batch["bboxes"])  # type: ignore
+
+        return collated_batch
+
 
 if __name__ == "__main__":
 
     from pprint import pprint
 
-    from ..classes.llm import LLM
-    from ..managers.download_manager import DownloadManager
-    from ..managers.preprocess_manager import PreprocessManager
-    from ..models.clip_model import ClipModel
-    from ..utils.consts import DATA_PATH, LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
+    from ..utils.consts import DATA_PATH
 
-    dm = DownloadManager(data_path=DATA_PATH)
-
-    llm = LLM(
-        base_model=LLM_MODEL,
-        system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
-    )
-    clip = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
-    pm = PreprocessManager(
-        data_path=DATA_PATH,
-        images_path=dm.images_path,
-        raw_annotations_path=dm.annotations_path,
-        llm=llm,
-        clip=clip,
-    )
-
-    # Create a sample dataset
     dataset = RefCOCOgBaseDataset(
-        annotations_path=pm.annotations_path,
-        images_path=pm.images_path,
-        embeddings_path=pm.embeddings_path,
+        annotations_path=DATA_PATH / "annotations.csv",
+        images_path=DATA_PATH / "images",
+        embeddings_path=DATA_PATH / "embeddings",
         split="train",
-        limit=10,
+        limit=10,  # Limit to 10 samples for testing
     )
 
     print(f"Dataset length: {len(dataset)}")

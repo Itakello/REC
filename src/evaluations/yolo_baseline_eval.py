@@ -104,8 +104,8 @@ if __name__ == "__main__":
     from ..utils.consts import IOU_THRESHOLDS, YOLO_VERSIONS
 
     evaluator = YOLOBaselineEval(
-        iou_thresholds=IOU_THRESHOLDS[-2:],
-        yolo_versions=YOLO_VERSIONS[-2:],
+        iou_thresholds=IOU_THRESHOLDS,
+        yolo_versions=YOLO_VERSIONS,
     )
     metrics = evaluator.evaluate()
     print("Evaluation metrics:")

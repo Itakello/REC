@@ -1,6 +1,7 @@
 ## Folders
 **/wandb/
 **/data/
+**/models/
 **/__pycache__/
 **/logs/
 **/.mypy_cache/

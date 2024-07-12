@@ -161,7 +161,9 @@ class PreprocessManager(BaseClass):
 
             # Encode original sentences
             original_sentences = row["sentences"]
-            original_sentences_features = self.clip.encode_sentences(original_sentences)
+            original_sentences_features = self.clip.encode_sentences(
+                original_sentences, average=True
+            )
 
             # Encode comprehensive sentence
             comprehensive_sentence = row["comprehensive_sentence"]
@@ -171,7 +173,9 @@ class PreprocessManager(BaseClass):
 
             # Encode combined sentences
             combined_sentences = original_sentences + [comprehensive_sentence]
-            combined_sentences_features = self.clip.encode_sentences(combined_sentences)
+            combined_sentences_features = self.clip.encode_sentences(
+                combined_sentences, average=True
+            )
 
             # Save embeddings
             embeddings = {

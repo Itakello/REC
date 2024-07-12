@@ -11,7 +11,7 @@ from ..datasets.yolo_baseline_dataset import YOLOBaselineDataset
 from ..interfaces.base_model import BaseModel
 from ..utils.consts import DATA_PATH, DEVICE, MODELS_PATH
 from ..utils.create_directory import create_directory
-from ..utils.save_sample import save_and_visualize_image_with_bboxes
+from ..utils.save_sample import save_image_with_bboxes
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -65,6 +65,6 @@ if __name__ == "__main__":
     samples_dir = create_directory(Path("./samples"))
 
     # Save and visualize the results
-    save_and_visualize_image_with_bboxes(
+    save_image_with_bboxes(
         image, gt_bbox, predicted_bboxes, samples_dir / "yolo_prediction_result.jpg"
     )

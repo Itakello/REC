@@ -7,7 +7,7 @@ from PIL import Image
 from ..classes.highlighting_modality import HighlightingModality
 
 
-def save_and_visualize_image_with_bboxes(
+def save_image_with_bboxes(
     image: Image.Image,
     gt_bbox: list[float],
     pred_bboxes: list[list[float]] | torch.Tensor,

@@ -23,8 +23,8 @@ LINE_WIDTH = 2
 
 # Hyperarameters
 
-SELECTION_MODALITIES = ["blur", "ellipse", "crop", "blackout", "rectangle"]
-SENTENCES_TYPES = ["default", "new", "combined"]
+HIGHLIGHTING_METHODS = ["blur", "ellipse", "crop", "blackout", "rectangle"]
+SENTENCES_TYPES = ["original_sentences", "comprehensive_sentence", "combined_sentences"]
 LEARNING_RATES = [0.001, 0.01, 0.1]
 YOLO_VERSIONS = [
     "yolov5nu",

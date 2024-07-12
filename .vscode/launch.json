@@ -2,17 +2,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Preprocess manager",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "src.managers.preprocess_manager",
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}"
-            },
-            "console": "integratedTerminal"
-        },
-        {
             "name": "Python: LLM",
             "type": "debugpy",
             "request": "launch",
@@ -24,10 +13,10 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: CLIP",
+            "name": "Python: Preprocess manager",
             "type": "debugpy",
             "request": "launch",
-            "module": "src.models.clip_model",
+            "module": "src.managers.preprocess_manager",
             "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
@@ -46,6 +35,17 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Python: CLIP",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.models.clip_model",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Python: YOLO Model",
             "type": "debugpy",
             "request": "launch",
@@ -57,10 +57,10 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: YOLO Benchmark Dataset",
+            "name": "Python: YOLO Baseline Dataset",
             "type": "debugpy",
             "request": "launch",
-            "module": "src.datasets.yolo_benchmark_dataset",
+            "module": "src.datasets.yolo_baseline_dataset",
             "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
@@ -68,10 +68,10 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python: YOLO Eval",
+            "name": "Python: YOLO Baseline Eval",
             "type": "debugpy",
             "request": "launch",
-            "module": "src.evaluations.yolo_eval",
+            "module": "src.evaluations.yolo_baseline_eval",
             "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
@@ -83,6 +83,28 @@
             "type": "debugpy",
             "request": "launch",
             "module": "src.classes.highlighting_modality",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Similarity Baseline Dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.datasets.similarity_baseline_dataset",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Similarity Baseline Eval",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.evaluations.similarity_baseline_eval",
             "cwd": "${workspaceFolder}",
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
