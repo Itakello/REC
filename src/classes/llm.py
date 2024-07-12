@@ -102,9 +102,11 @@ class LLM(BaseClass):
 
 
 if __name__ == "__main__":
+    from ..utils.consts import LLM_MODEL, LLM_SYSTEM_PROMPT_PATH
+
     llm = LLM(
-        base_model="llama3",
-        system_prompt_path=Path("prompts/referential-expression-prompt.txt"),
+        base_model=LLM_MODEL,
+        system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
     )
     starting_sentences = [
         "A blonde woman in a white shirt and long black skirt.",

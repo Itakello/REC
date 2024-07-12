@@ -41,8 +41,6 @@ if __name__ == "__main__":
         annotations_path=DATA_PATH / "annotations.csv",
         images_path=DATA_PATH / "images",
         embeddings_path=DATA_PATH / "embeddings",
-        split="train",
-        limit=1,
     )
 
     print(f"Dataset length: {len(dataset)}")

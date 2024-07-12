@@ -21,7 +21,7 @@ class RefCOCOgBaseDataset(BaseDataset):
     annotations_path: Path
     images_path: Path
     embeddings_path: Path
-    split: str = "train"
+    split: str | None = None
     limit: int = -1
     data: pd.DataFrame = field(init=False)
 
@@ -35,8 +35,9 @@ class RefCOCOgBaseDataset(BaseDataset):
         logger.info(f"Loaded {len(self.data)} total samples")
 
     def _filter_data(self) -> None:
-        self.data = self.data[self.data["split"] == self.split]
-        logger.info(f"Filtered to {len(self.data)} {self.split} samples")
+        if self.split is not None:
+            self.data = self.data[self.data["split"] == self.split]
+            logger.info(f"Filtered to {len(self.data)} {self.split} samples")
         if self.limit > 0:
             self.data = self.data.sample(
                 n=min(self.limit, self.data.__len__()), random_state=42
@@ -134,8 +135,6 @@ if __name__ == "__main__":
         annotations_path=DATA_PATH / "annotations.csv",
         images_path=DATA_PATH / "images",
         embeddings_path=DATA_PATH / "embeddings",
-        split="train",
-        limit=10,  # Limit to 10 samples for testing
     )
 
     print(f"Dataset length: {len(dataset)}")

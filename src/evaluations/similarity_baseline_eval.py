@@ -29,14 +29,13 @@ class SimilarityBaselineEval(BaseEval):
             annotations_path=DATA_PATH / "annotations.csv",
             images_path=DATA_PATH / "images",
             embeddings_path=DATA_PATH / "embeddings",
-            split="train",
         )
         self.clip_model = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
 
     def get_dataloaders(self) -> list[tuple[str, DataLoader]]:
         return [
             (
-                "train",
+                "test",
                 DataLoader(
                     self.dataset, collate_fn=self.dataset.collate_fn, shuffle=False
                 ),
