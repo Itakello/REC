@@ -10,20 +10,15 @@ from ..classes.metric import Metrics
 from ..datasets.similarity_baseline_dataset import SimilarityBaselineDataset
 from ..interfaces.base_eval import BaseEval
 from ..models.clip_model import ClipModel
-from ..utils.consts import (
-    CLIP_MODEL,
-    DATA_PATH,
-    HIGHLIGHTING_METHODS,
-    MODELS_PATH,
-    SENTENCES_TYPES,
-    WANDB_PROJECT,
-)
+from ..utils.consts import CLIP_MODEL, DATA_PATH, MODELS_PATH, WANDB_PROJECT
 
 logger = ItakelloLogging().get_logger(__name__)
 
 
 @dataclass
 class SimilarityBaselineEval(BaseEval):
+    highlighting_methods: list[str] = field(default_factory=list)
+    sentences_types: list[str] = field(default_factory=list)
     name: str = "similarity-baseline"
     dataset: SimilarityBaselineDataset = field(init=False)
     clip_model: ClipModel = field(init=False)
@@ -50,8 +45,8 @@ class SimilarityBaselineEval(BaseEval):
 
     def evaluate(self) -> dict[str, Metrics]:
         results = {
-            method: {sentence_type: [] for sentence_type in SENTENCES_TYPES}
-            for method in HIGHLIGHTING_METHODS
+            method: {sentence_type: [] for sentence_type in self.sentences_types}
+            for method in self.highlighting_methods
         }
 
         for batch in self.get_dataloaders()[0][1]:
@@ -76,7 +71,7 @@ class SimilarityBaselineEval(BaseEval):
                 comprehensive_sentence_embeddings,
                 combined_sentences_embeddings,
             ):
-                for method in HIGHLIGHTING_METHODS:
+                for method in self.highlighting_methods:
                     highlighted_image = HighlightingModality.apply_highlighting(
                         image, bbox, method
                     )
@@ -106,9 +101,9 @@ class SimilarityBaselineEval(BaseEval):
 
         # Normalize results
         metrics = {}
-        for method in HIGHLIGHTING_METHODS:
+        for method in self.highlighting_methods:
             metrics[method] = Metrics()
-            for sentence_type in SENTENCES_TYPES:
+            for sentence_type in self.sentences_types:
                 avg_similarity = sum(results[method][sentence_type]) / len(
                     results[method][sentence_type]
                 )
@@ -135,7 +130,11 @@ class SimilarityBaselineEval(BaseEval):
 
 
 if __name__ == "__main__":
-    evaluator = SimilarityBaselineEval()
+    from ..utils.consts import HIGHLIGHTING_METHODS, SENTENCES_TYPES
+
+    evaluator = SimilarityBaselineEval(
+        highlighting_methods=HIGHLIGHTING_METHODS, sentences_types=SENTENCES_TYPES
+    )
     metrics = evaluator.evaluate()
     print("Evaluation metrics:")
     for method, method_metrics in metrics.items():

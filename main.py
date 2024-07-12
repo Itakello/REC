@@ -11,13 +11,16 @@ from src.utils.consts import (
     CLIP_MODEL,
     DATA_PATH,
     DATASET_URL,
+    HIGHLIGHTING_METHODS,
     IOU_THRESHOLDS,
     LLM_MODEL,
     LLM_SYSTEM_PROMPT_PATH,
     MODELS_PATH,
+    SENTENCES_TYPES,
     YOLO_VERSIONS,
 )
 
+from .src.evaluations.similarity_baseline_eval import SimilarityBaselineEval
 from .src.models.yolo_model import YOLOModel
 
 ItakelloLogging(excluded_modules=[], debug=True)
@@ -47,12 +50,22 @@ def main() -> None:
         iou_thresholds=IOU_THRESHOLDS,
         yolo_versions=YOLO_VERSIONS,
     )
-    metrics = yolo_baseline_eval.evaluate()
+    yolo_metrics = yolo_baseline_eval.evaluate()
 
     # NOTE: 1 - Choose YOLO model and IOU threshold
 
     yolo_model = YOLOModel(version="yolov5mu", models_path=MODELS_PATH)
     iou_threshold = 0.5
+
+    similarity_baseline_eval = SimilarityBaselineEval(
+        highlighting_methods=HIGHLIGHTING_METHODS, sentences_types=SENTENCES_TYPES
+    )
+    similarity_metrics = similarity_baseline_eval.evaluate()
+
+    # NOTE: 2 - Chooose highlighting method and sentence type
+
+    highlighting_method = "ellipse"
+    sentences_type = "combined_sentences"
 
 
 if __name__ == "__main__":
