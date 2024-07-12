@@ -9,9 +9,11 @@ from itakello_logging import ItakelloLogging
 from PIL import Image
 from tqdm import tqdm
 
+from ..classes.highlighting_modality import HighlightingModality
 from ..classes.llm import LLM
 from ..interfaces.base_class import BaseClass
 from ..models.clip_model import ClipModel
+from ..models.yolo_model import YOLOModel
 from ..utils.consts import CLIP_MODEL, MODELS_PATH
 from ..utils.create_directory import create_directory
 
@@ -50,7 +52,9 @@ class PreprocessManager(BaseClass):
                         "image_id"
                     ],  # Keeping these temporarily for joining with JSON data
                     "split": ref["split"],
-                    "sentences": [sent["raw"] for sent in ref["sentences"]],
+                    "sentences": [
+                        str(sent["raw"]).replace("'", "`") for sent in ref["sentences"]
+                    ],
                     "category_id": ref["category_id"],
                     "ann_id": ref["ann_id"],
                 }
@@ -204,6 +208,9 @@ class PreprocessManager(BaseClass):
         df.to_csv(self.annotations_path, index=False)
         logger.confirmation(f"CSV file saved successfully: {self.annotations_path}")
 
+    def get_dataframe_from_csv(self) -> pd.DataFrame:
+        return pd.read_csv(self.annotations_path)
+
     def process_data(self, sample_size: int | None = None) -> None:
         df = self.process_pickle_to_dataframe()
 
@@ -216,6 +223,86 @@ class PreprocessManager(BaseClass):
         df = self.generate_comprehensive_sentence(df)
         df = self.encode_features(df)
         self.save_dataframe_to_csv(df)
+
+    def add_yolo_predictions(self, yolo_model: YOLOModel) -> None:
+        df = self.get_dataframe_from_csv()
+        logger.info("Starting YOLO prediction process")
+
+        total_rows = len(df)
+        pbar = tqdm(total=total_rows, desc="Adding YOLO predictions", unit="image")
+
+        yolo_predictions = []
+
+        for _, row in df.iterrows():
+            image_path = self.images_path / row["file_name"]
+            image = Image.open(image_path).convert("RGB")
+
+            # Get YOLO predictions
+            predictions = yolo_model.get_bboxes(image)
+
+            # Convert predictions to list of lists for JSON serialization
+            predictions_list = predictions.cpu().tolist()
+
+            yolo_predictions.append(json.dumps(predictions_list))
+
+            pbar.update(1)
+
+        pbar.close()
+
+        # Add YOLO predictions to the DataFrame
+        df["yolo_predictions"] = yolo_predictions
+
+        self.save_dataframe_to_csv(df)
+        logger.confirmation("Updated CSV file saved with YOLO predictions")
+
+    def add_highlighting_encoding(self, highlighting_method: str) -> None:
+        df = self.get_dataframe_from_csv()
+        logger.info(
+            f"Starting highlighting encoding process using {highlighting_method} method"
+        )
+
+        total_rows = len(df)
+        pbar = tqdm(
+            total=total_rows, desc="Adding highlighting encodings", unit="image"
+        )
+
+        for idx, row in df.iterrows():
+            image_path = self.images_path / row["file_name"]
+            image = Image.open(image_path).convert("RGB")
+
+            yolo_predictions = json.loads(row["yolo_predictions"])
+
+            # Apply highlighting to each prediction
+            highlighted_images = [
+                HighlightingModality().apply_highlighting(
+                    image.copy(), bbox, highlighting_method
+                )
+                for bbox in yolo_predictions
+            ]
+
+            # Encode highlighted images
+            highlighted_embeddings = self.clip.encode_images(highlighted_images)
+
+            # Load existing embeddings
+            embedding_path = self.embeddings_path / row["embeddings_filename"]
+            with np.load(embedding_path) as data:
+                embeddings = {key: data[key] for key in data.files}
+
+            # Add new highlighted embeddings
+            embeddings[f"{highlighting_method}_highlighted_embeddings"] = (
+                highlighted_embeddings.cpu().numpy()
+            )
+
+            # Save updated embeddings
+            np.savez_compressed(embedding_path, **embeddings)
+
+            pbar.update(1)
+
+        pbar.close()
+
+        logger.confirmation(
+            f"Highlighting encodings ({highlighting_method}) added to embeddings files"
+        )
 
 
 if __name__ == "__main__":
@@ -237,3 +324,13 @@ if __name__ == "__main__":
         clip=clip,
     )
     pm.process_data(sample_size=10)
+
+    #  Add YOLO predictions
+    yolo_model = YOLOModel(version="yolov5mu", models_path=MODELS_PATH)
+    pm.add_yolo_predictions(yolo_model=yolo_model)
+
+    # Add highlighting embeddings
+    highlighting_method = "ellipse"
+    pm.add_highlighting_encoding(highlighting_method=highlighting_method)
+
+    logger.confirmation("All preprocessing steps completed successfully")
