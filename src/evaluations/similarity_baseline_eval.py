@@ -1,7 +1,9 @@
 from dataclasses import dataclass, field
 
+import matplotlib.pyplot as plt
+import seaborn as sns
 from itakello_logging import ItakelloLogging
-from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 import wandb
 
@@ -10,7 +12,7 @@ from ..classes.metric import Metrics
 from ..datasets.similarity_baseline_dataset import SimilarityBaselineDataset
 from ..interfaces.base_eval import BaseEval
 from ..models.clip_model import ClipModel
-from ..utils.consts import CLIP_MODEL, WANDB_PROJECT
+from ..utils.consts import CLIP_MODEL, STATS_PATH, WANDB_PROJECT
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -20,23 +22,11 @@ class SimilarityBaselineEval(BaseEval):
     highlighting_methods: list[str] = field(default_factory=list)
     sentences_types: list[str] = field(default_factory=list)
     name: str = "similarity-baseline"
-    dataset: SimilarityBaselineDataset = field(init=False)
     clip_model: ClipModel = field(init=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.dataset = SimilarityBaselineDataset()
         self.clip_model = ClipModel(version=CLIP_MODEL)
-
-    def get_dataloaders(self) -> list[tuple[str, DataLoader]]:
-        return [
-            (
-                "val",
-                DataLoader(
-                    self.dataset, collate_fn=self.dataset.collate_fn, shuffle=False
-                ),
-            )
-        ]
 
     def evaluate(self) -> dict[str, Metrics]:
         results = {
@@ -44,7 +34,10 @@ class SimilarityBaselineEval(BaseEval):
             for method in self.highlighting_methods
         }
 
-        for batch in self.get_dataloaders()[0][1]:
+        for batch in tqdm(
+            SimilarityBaselineDataset.get_dataloaders()["val"],
+            desc="Evaluating similarity",
+        ):
             images = batch["images"]
             bboxes = batch["bboxes"]
             original_sentences_embeddings = batch["original_sentences_embeddings"]
@@ -110,9 +103,10 @@ class SimilarityBaselineEval(BaseEval):
 
     def log_metrics(self, metrics: Metrics | dict[str, Metrics]) -> None:
         assert isinstance(metrics, dict)
+        heatmap_data = []
         for method, method_metrics in metrics.items():
             run = wandb.init(
-                project=WANDB_PROJECT,
+                project=WANDB_PROJECT,  # type: ignore
                 name=f"{method}",
             )
             wandb.log(
@@ -121,7 +115,23 @@ class SimilarityBaselineEval(BaseEval):
                     for metric in method_metrics
                 },
             )
+            values = [metric.value for metric in method_metrics]
+            heatmap_data.append(values)
             run.finish()
+
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(
+            data=heatmap_data,
+            annot=True,
+            fmt=".2f",
+            xticklabels=self.sentences_types,
+            yticklabels=self.highlighting_methods,
+        )
+        plt.title("Similarity Baseline Evaluation")
+        plt.xlabel("Sentence Types")
+        plt.ylabel("Highlighting Methods")
+        plt.savefig(STATS_PATH / f"{self.name}_heatmap.png")
+        plt.close()
 
 
 if __name__ == "__main__":

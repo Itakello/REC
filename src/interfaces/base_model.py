@@ -9,7 +9,7 @@ from .base_class import BaseClass
 
 @dataclass
 class BaseModel(BaseClass, ABC):
-    version: str
+    version: str | None = None
     model_path: Path = field(init=False)
     name: str = field(init=False)
 

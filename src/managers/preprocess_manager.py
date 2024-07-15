@@ -11,6 +11,8 @@ from itakello_logging import ItakelloLogging
 from PIL import Image
 from tqdm import tqdm
 
+from src.utils.calculate_iou import calculate_iou
+
 from ..classes.highlighting_modality import HighlightingModality
 from ..classes.llm import LLM
 from ..interfaces.base_class import BaseClass
@@ -277,6 +279,9 @@ class PreprocessManager(BaseClass):
     def get_dataframe_from_csv(self, file_name: str) -> pd.DataFrame:
         df = pd.read_csv(self.processed_annotations_path / file_name)
         df["sentences"] = df["sentences"].apply(ast.literal_eval)
+        df["bbox"] = df["bbox"].apply(json.loads)
+        if "yolo_predictions" in df.columns:
+            df["yolo_predictions"] = df["yolo_predictions"].apply(json.loads)
         return df
 
     def process_data(self, sample_size: int | None = None) -> None:
@@ -345,7 +350,68 @@ class PreprocessManager(BaseClass):
         self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
         logger.confirmation("Updated CSV file saved with YOLO predictions")
 
-    def add_highlighting_encoding(self, highlighting_method: str) -> None:
+    def filter_valid_samples(self, iou_threshold: float = 0.5) -> None:
+        df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
+        valid_indices = []
+        for index, row in df.iterrows():
+            if row["split"] == "test":
+                valid_indices.append(index)
+                continue
+
+            yolo_predictions = row["yolo_predictions"]
+            gt_bbox = row["bbox"]
+
+            # Check if any prediction matches the ground truth
+            valid = any(
+                calculate_iou(pred, gt_bbox)[0] >= iou_threshold
+                for pred in yolo_predictions
+            )
+            if valid:
+                valid_indices.append(index)
+
+        df = df.loc[valid_indices]
+        print(f"Filtered dataset to {len(df)} valid samples")
+        self.save_dataframe_to_csv(df, file_name="7_filtered_valid_samples.csv")
+        self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
+        logger.confirmation(f"Filtered dataset to {len(df)} valid samples")
+
+    def add_correct_candidate_idx(self, iou_threshold: float) -> None:
+        df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
+        logger.info("Starting correct candidate index determination process")
+
+        total_rows = len(df)
+        pbar = tqdm(
+            total=total_rows, desc="Adding correct candidate indices", unit="sample"
+        )
+
+        correct_candidate_indices = []
+        correct_candidate_ious = []
+
+        for _, row in df.iterrows():
+            gt_bbox = row["bbox"]
+            yolo_predictions = row["yolo_predictions"]
+
+            # Calculate IoU for all predictions
+            ious = [calculate_iou(pred, gt_bbox)[0] for pred in yolo_predictions]
+
+            correct_candidate_indices.append(np.argmax(ious))
+            correct_candidate_ious.append(np.max(ious))
+
+            pbar.update(1)
+
+        pbar.close()
+
+        # Add correct candidate indices to the DataFrame
+        df["correct_candidate_idx"] = correct_candidate_indices
+        df["correct_candidate_iou"] = correct_candidate_ious
+
+        self.save_dataframe_to_csv(
+            df, file_name="8_added_correct_candidate_idx_and_ious.csv"
+        )
+        self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
+        logger.confirmation("Updated CSV file saved with correct candidate indices")
+
+    def add_highlighting_embeddings(self, highlighting_method: str) -> None:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
         logger.info(
             f"Starting highlighting encoding process using {highlighting_method} method"
@@ -361,6 +427,7 @@ class PreprocessManager(BaseClass):
             image = Image.open(image_path).convert("RGB")
 
             yolo_predictions = json.loads(row["yolo_predictions"])
+            top_k = max()
 
             # Apply highlighting to each prediction
             highlighted_images = [
@@ -420,6 +487,6 @@ if __name__ == "__main__":
 
     # Add highlighting embeddings
     highlighting_method = "ellipse"
-    pm.add_highlighting_encoding(highlighting_method=highlighting_method)
+    pm.add_highlighting_embeddings(highlighting_method=highlighting_method)
 
     logger.confirmation("All preprocessing steps completed successfully")

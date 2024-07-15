@@ -3,6 +3,7 @@ import os
 from itakello_logging import ItakelloLogging
 
 from src.classes.llm import LLM
+from src.evaluations.highlighting_method_baseline_eval import HighlightingMethodEval
 from src.evaluations.similarity_baseline_eval import SimilarityBaselineEval
 from src.evaluations.yolo_baseline_eval import YOLOBaselineEval
 from src.managers.download_manager import DownloadManager
@@ -45,30 +46,41 @@ def main() -> None:
     )
     # pm.process_data()
 
-    yolo_baseline_eval = YOLOBaselineEval(
-        iou_thresholds=IOU_THRESHOLDS,
-        yolo_versions=YOLO_VERSIONS,
-    )
-    yolo_metrics = yolo_baseline_eval.evaluate()
+    # yolo_baseline_eval = YOLOBaselineEval(
+    #    iou_thresholds=IOU_THRESHOLDS,
+    #    yolo_versions=YOLO_VERSIONS,
+    # )
+    # yolo_metrics = yolo_baseline_eval.evaluate()
 
     # NOTE: 1 - Choose YOLO model and IOU threshold
 
-    """iou_threshold = 0.5
-    yolo_model = YOLOModel(version="yolov5mu", models_path=MODELS_PATH)
+    iou_threshold = 0.8
+    yolo_model = YOLOModel(version="yolov8x")
 
-    annotations_file_name = pm.add_yolo_predictions(yolo_model=yolo_model, previous_file_name=annotations_file_name)
+    # pm.add_yolo_predictions(yolo_model=yolo_model)
 
-    similarity_baseline_eval = SimilarityBaselineEval(
+    # pm.filter_valid_samples(iou_threshold=iou_threshold)
+
+    # pm.add_correct_candidate_idx(iou_threshold=iou_threshold)
+
+    """similarity_baseline_eval = SimilarityBaselineEval(
         highlighting_methods=HIGHLIGHTING_METHODS, sentences_types=SENTENCES_TYPES
     )
-    # similarity_metrics = similarity_baseline_eval.evaluate()
+    similarity_metrics = similarity_baseline_eval.evaluate()"""
 
-    # NOTE: 2 - Chooose highlighting method and sentence type
+    # NOTE: 2 - Chooose best sentence type
 
     sentences_type = "combined_sentences"
-    highlighting_method = "ellipse"
 
-    pm.add_highlighting_embeddings(highlighting_method=highlighting_method)"""
+    highlighting_method_baseline_eval = HighlightingMethodEval(
+        highlighting_methods=HIGHLIGHTING_METHODS, sentence_type=sentences_type
+    )
+    highlighting_method_baseline_eval.evaluate()
+
+    highlighting_method = "crop"
+    top_k = 6
+
+    # pm.add_highlighting_embeddings(highlighting_method=highlighting_method, top_k=top_k)
 
 
 if __name__ == "__main__":

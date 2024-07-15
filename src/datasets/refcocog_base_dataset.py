@@ -9,6 +9,7 @@ import pandas as pd
 import torch
 from itakello_logging import ItakelloLogging
 from PIL import Image
+from torch.utils.data import DataLoader
 
 from ..interfaces.base_dataset import BaseDataset
 from ..utils.consts import (
@@ -125,6 +126,24 @@ class RefCOCOgBaseDataset(BaseDataset):
         collated_batch["bboxes"] = torch.stack(collated_batch["bboxes"])  # type: ignore
 
         return collated_batch
+
+    @classmethod
+    def get_dataloaders(cls, batch_size: int = 32) -> dict[str, DataLoader]:
+        dataloaders = {
+            "train": DataLoader(
+                cls(split="train"),
+                batch_size=batch_size,
+                collate_fn=cls.collate_fn,
+                shuffle=True,
+            ),
+            "val": DataLoader(
+                cls(split="val"), batch_size=batch_size, collate_fn=cls.collate_fn
+            ),
+            "test": DataLoader(
+                cls(split="test"), batch_size=batch_size, collate_fn=cls.collate_fn
+            ),
+        }
+        return dataloaders
 
 
 if __name__ == "__main__":

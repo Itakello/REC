@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 import matplotlib.pyplot as plt
 import seaborn as sns
 from itakello_logging import ItakelloLogging
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import wandb
@@ -24,27 +23,14 @@ class YOLOBaselineEval(BaseEval):
     iou_thresholds: list[float] = field(default_factory=list)
     yolo_versions: list[str] = field(default_factory=list)
     name: str = "yolo-baseline"
-    dataset: YOLOBaselineDataset = field(init=False)
     models: dict[str, YOLOModel] = field(init=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.dataset = YOLOBaselineDataset(split="val")
         self.models = {
             version: YOLOModel(version=version) for version in self.yolo_versions
         }
         create_directory(STATS_PATH)
-
-    def get_dataloaders(self) -> list[tuple[str, DataLoader]]:
-        return [
-            (
-                "val",
-                DataLoader(
-                    self.dataset,
-                    collate_fn=self.dataset.collate_fn,
-                ),
-            )
-        ]
 
     def evaluate(self) -> dict[str, Metrics]:
         results = {
@@ -53,7 +39,9 @@ class YOLOBaselineEval(BaseEval):
         }
         total_samples = 0
 
-        for batch in tqdm(self.get_dataloaders()[0][1], desc="Evaluating YOLO models"):
+        for batch in tqdm(
+            YOLOBaselineDataset.get_dataloaders()["val"], desc="Evaluating YOLO models"
+        ):
             images = batch["images"]
             gt_bboxes = batch["bboxes"]
 
@@ -88,7 +76,7 @@ class YOLOBaselineEval(BaseEval):
         heatmap_data = []
         for version, version_metrics in metrics.items():
             run = wandb.init(
-                project=WANDB_PROJECT,
+                project=WANDB_PROJECT,  # type: ignore
                 name=version,
             )
             wandb.log(
@@ -101,7 +89,7 @@ class YOLOBaselineEval(BaseEval):
             heatmap_data.append(values)
             run.finish()
 
-        x_labels = [f"iou_{iou}" for iou in self.iou_thresholds]
+        x_labels = [f"{iou}" for iou in self.iou_thresholds]
         y_labels = list(metrics.keys())
         plt.figure(figsize=(8, 6))
         sns.heatmap(

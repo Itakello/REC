@@ -110,6 +110,39 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Highlighting Modality Baseline Dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.datasets.highlighting_method_baseline_dataset",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Highlighting Modality Baseline Eval",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.evaluations.highlighting_method_baseline_eval",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Test Model",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.models.test_model",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
         }
     ]
 }

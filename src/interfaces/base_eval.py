@@ -20,9 +20,5 @@ class BaseEval(BaseClass, ABC):
         pass
 
     @abstractmethod
-    def get_dataloaders(self) -> list[tuple[str, DataLoader]]:
-        pass
-
-    @abstractmethod
     def log_metrics(self, metrics: Metrics | dict[str, Metrics]) -> None:
         pass
