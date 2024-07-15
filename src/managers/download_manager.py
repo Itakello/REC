@@ -7,7 +7,7 @@ import gdown
 from itakello_logging import ItakelloLogging
 
 from ..interfaces.base_class import BaseClass
-from ..utils.consts import DATA_PATH, DATASET_URL
+from ..utils.consts import DATA_PATH, DATASET_URL, IMAGES_PATH
 from ..utils.create_directory import create_directory
 
 logger = ItakelloLogging().get_logger(__name__)
@@ -16,12 +16,11 @@ logger = ItakelloLogging().get_logger(__name__)
 @dataclass
 class DownloadManager(BaseClass):
     data_path: Path
-    images_path: Path = field(init=False)
     annotations_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.images_path = create_directory(self.data_path / "images")
+        self.images_path = create_directory(IMAGES_PATH)
         self.annotations_path = create_directory(self.data_path / "annotations")
 
     def download_data(self, drive_url: str) -> None:

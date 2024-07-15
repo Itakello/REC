@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from ..datasets.yolo_baseline_dataset import YOLOBaselineDataset
 from ..interfaces.base_class import BaseClass
-from ..utils.consts import BLUR_INTENSITY, DATA_PATH, HIGHLIGHTING_METHODS, LINE_WIDTH
+from ..utils.consts import BLUR_INTENSITY, HIGHLIGHTING_METHODS, LINE_WIDTH
 from ..utils.create_directory import create_directory
 
 
@@ -153,11 +153,7 @@ class HighlightingModality(BaseClass):
 if __name__ == "__main__":
 
     # Initialize the YOLOBaselineDataset
-    dataset = YOLOBaselineDataset(
-        annotations_path=DATA_PATH / "annotations.csv",
-        images_path=DATA_PATH / "images",
-        embeddings_path=DATA_PATH / "embeddings",
-    )
+    dataset = YOLOBaselineDataset()
 
     # Get the first sample from the dataset
     image = dataset[0]["image"]

@@ -1,5 +1,7 @@
+import ast
 import json
 import pickle
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -14,7 +16,7 @@ from ..classes.llm import LLM
 from ..interfaces.base_class import BaseClass
 from ..models.clip_model import ClipModel
 from ..models.yolo_model import YOLOModel
-from ..utils.consts import CLIP_MODEL, MODELS_PATH
+from ..utils.consts import CLIP_MODEL, IMAGES_PATH, PROCESSED_ANNOTATIONS_PATH
 from ..utils.create_directory import create_directory
 
 logger = ItakelloLogging().get_logger(__name__)
@@ -23,16 +25,16 @@ logger = ItakelloLogging().get_logger(__name__)
 @dataclass
 class PreprocessManager(BaseClass):
     data_path: Path
-    images_path: Path
     raw_annotations_path: Path
     llm: LLM
     clip: ClipModel
-    annotations_path: Path = field(init=False)
+    annotations_file_name: str = "annotations.csv"
+    processed_annotations_path: Path = field(init=False)
     embeddings_path: Path = field(init=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.annotations_path = self.data_path / "annotations.csv"
+        self.processed_annotations_path = create_directory(PROCESSED_ANNOTATIONS_PATH)
         self.embeddings_path = create_directory(self.data_path / "embeddings")
 
     def process_pickle_to_dataframe(self) -> pd.DataFrame:
@@ -151,6 +153,69 @@ class PreprocessManager(BaseClass):
 
         return df
 
+    @staticmethod
+    def preprocess_comprehensive_sentences(sentence: str) -> str:
+        # Split the sentence into lines
+        lines = sentence.split("\n")
+
+        # Keep only the last non-empty line
+        sentence = next((line for line in reversed(lines) if line.strip()), "")
+
+        # Remove explanatory notes and comments
+        sentence = re.sub(r"\(.*?\)", "", sentence)
+        sentence = re.sub(r"I .*", "", sentence)
+        sentence = re.sub(r"Let me know.*", "", sentence)
+        sentence = re.sub(r"Note:.*", "", sentence)
+        sentence = re.sub(r"This sentence captures.*", "", sentence)
+
+        # Remove phrases like "Here's the output:", "Output:", etc.
+        sentence = re.sub(
+            r"^(Here\'s|Here is|Output:|Based on|Innovative input!|Single-sentence referential expression:|Single, concise referential expression:).*?:",
+            "",
+            sentence,
+        )
+
+        # Remove numbers at the start of sentences
+        sentence = re.sub(r"^\d+\.\s*", "", sentence)
+
+        # Remove any trailing periods and spaces
+        sentence = sentence.rstrip(". ")
+
+        # Remove quotes and adjust trailing periods
+        sentence = sentence.strip('"').rstrip(".")
+
+        return f"{sentence.strip().capitalize()}."
+
+    def clean_comprehensive_sentences(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Count initial samples
+        initial_count = len(df)
+
+        # Remove samples from train and val sets where there are more than 1 line
+        train_val_mask = (df["split"].isin(["train", "val"])) & (
+            df["comprehensive_sentence"].str.count("\n") > 0
+        )
+        removed_count = train_val_mask.sum()
+        df = df[~train_val_mask]
+
+        # Identify test samples with more than 1 line
+        test_mask = (df["split"] == "test") & (
+            df["comprehensive_sentence"].str.count("\n") > 0
+        )
+
+        # Store original sentences
+        original_sentences = df.loc[test_mask, "comprehensive_sentence"].copy()
+
+        # Apply cleaning steps to test sentences
+        df.loc[test_mask, "comprehensive_sentence"] = original_sentences.apply(
+            self.preprocess_comprehensive_sentences
+        )
+
+        logger.info(f"Initial sample count: {initial_count}")
+        logger.info(f"Removed samples count: {removed_count}")
+        logger.info(f"Final sample count: {len(df)}")
+
+        return df
+
     def encode_features(self, df: pd.DataFrame) -> pd.DataFrame:
         logger.info("Starting feature encoding process")
 
@@ -159,7 +224,7 @@ class PreprocessManager(BaseClass):
 
         for idx, row in df.iterrows():
             # Load and encode image
-            image_path = self.images_path / row["file_name"]
+            image_path = IMAGES_PATH / row["file_name"]
             image = Image.open(image_path).convert("RGB")
             image_features = self.clip.encode_images(image)
 
@@ -204,28 +269,52 @@ class PreprocessManager(BaseClass):
         )
         return df
 
-    def save_dataframe_to_csv(self, df: pd.DataFrame) -> None:
-        df.to_csv(self.annotations_path, index=False)
-        logger.confirmation(f"CSV file saved successfully: {self.annotations_path}")
+    def save_dataframe_to_csv(self, df: pd.DataFrame, file_name: str) -> None:
+        file_path = self.processed_annotations_path / file_name
+        df.to_csv(file_path, index=False)
+        logger.confirmation(f"CSV file saved successfully: {file_path}")
 
-    def get_dataframe_from_csv(self) -> pd.DataFrame:
-        return pd.read_csv(self.annotations_path)
+    def get_dataframe_from_csv(self, file_name: str) -> pd.DataFrame:
+        df = pd.read_csv(self.processed_annotations_path / file_name)
+        df["sentences"] = df["sentences"].apply(ast.literal_eval)
+        return df
 
     def process_data(self, sample_size: int | None = None) -> None:
         df = self.process_pickle_to_dataframe()
+        self.save_dataframe_to_csv(df, file_name="0_from_pickle.csv")
 
         if sample_size is not None:
             df = df.sample(n=min(sample_size, len(df)), random_state=42)
             logger.info(f"Sampled {len(df)} rows for testing purposes")
 
         df = self.update_dataframe_with_json_data(df)
+        self.save_dataframe_to_csv(df, file_name="1_added_json.csv")
+
         df = self.fix_bboxes(df)
+        self.save_dataframe_to_csv(df, file_name="2_fixed_bboxes.csv")
+
         df = self.generate_comprehensive_sentence(df)
+        self.save_dataframe_to_csv(df, file_name="3_added_comprehensive_sentences.csv")
+
+        df = self.get_dataframe_from_csv(
+            file_name="3_added_comprehensive_sentences.csv"
+        )
+
+        df = self.clean_comprehensive_sentences(df)
+        self.save_dataframe_to_csv(
+            df, file_name="4_cleaned_comprehensive_sentences.csv"
+        )
+
+        df = self.get_dataframe_from_csv(
+            file_name="4_cleaned_comprehensive_sentences.csv"
+        )
+
         df = self.encode_features(df)
-        self.save_dataframe_to_csv(df)
+        self.save_dataframe_to_csv(df, file_name="5_encoded_features.csv")
+        self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
 
     def add_yolo_predictions(self, yolo_model: YOLOModel) -> None:
-        df = self.get_dataframe_from_csv()
+        df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
         logger.info("Starting YOLO prediction process")
 
         total_rows = len(df)
@@ -234,7 +323,7 @@ class PreprocessManager(BaseClass):
         yolo_predictions = []
 
         for _, row in df.iterrows():
-            image_path = self.images_path / row["file_name"]
+            image_path = IMAGES_PATH / row["file_name"]
             image = Image.open(image_path).convert("RGB")
 
             # Get YOLO predictions
@@ -252,11 +341,12 @@ class PreprocessManager(BaseClass):
         # Add YOLO predictions to the DataFrame
         df["yolo_predictions"] = yolo_predictions
 
-        self.save_dataframe_to_csv(df)
+        self.save_dataframe_to_csv(df, file_name="6_added_yolo_predictions.csv")
+        self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
         logger.confirmation("Updated CSV file saved with YOLO predictions")
 
     def add_highlighting_encoding(self, highlighting_method: str) -> None:
-        df = self.get_dataframe_from_csv()
+        df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
         logger.info(
             f"Starting highlighting encoding process using {highlighting_method} method"
         )
@@ -267,7 +357,7 @@ class PreprocessManager(BaseClass):
         )
 
         for idx, row in df.iterrows():
-            image_path = self.images_path / row["file_name"]
+            image_path = IMAGES_PATH / row["file_name"]
             image = Image.open(image_path).convert("RGB")
 
             yolo_predictions = json.loads(row["yolo_predictions"])
@@ -315,10 +405,9 @@ if __name__ == "__main__":
         base_model=LLM_MODEL,
         system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
     )
-    clip = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
+    clip = ClipModel(version=CLIP_MODEL)
     pm = PreprocessManager(
         data_path=DATA_PATH,
-        images_path=dm.images_path,
         raw_annotations_path=dm.annotations_path,
         llm=llm,
         clip=clip,
@@ -326,7 +415,7 @@ if __name__ == "__main__":
     pm.process_data(sample_size=10)
 
     #  Add YOLO predictions
-    yolo_model = YOLOModel(version="yolov5mu", models_path=MODELS_PATH)
+    yolo_model = YOLOModel(version="yolov5mu")
     pm.add_yolo_predictions(yolo_model=yolo_model)
 
     # Add highlighting embeddings

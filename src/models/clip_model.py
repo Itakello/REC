@@ -7,7 +7,7 @@ from PIL import Image
 from torchvision.transforms import Compose
 
 from ..interfaces.base_model import BaseModel
-from ..utils.consts import CLIP_MODEL, DEVICE, MODELS_PATH
+from ..utils.consts import CLIP_MODEL, DEVICE
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -44,9 +44,6 @@ class ClipModel(BaseModel):
         if average:
             text_features = text_features.mean(dim=0, keepdim=True)
 
-        logger.debug(
-            f"Sentences encoded: {len(sentences)} | Shape: {text_features.shape}"
-        )
         return text_features
 
     def encode_images(self, images: Image.Image | list[Image.Image]) -> torch.Tensor:
@@ -65,7 +62,6 @@ class ClipModel(BaseModel):
         if image_features.dim() == 1:
             image_features = image_features.unsqueeze(0)
 
-        logger.debug(f"Images encoded: {len(images)} | Shape: {image_features.shape}")
         return image_features
 
     def get_similarity(
@@ -114,17 +110,12 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
     from ..datasets.refcocog_base_dataset import RefCOCOgBaseDataset
-    from ..utils.consts import DATA_PATH
 
     # Initialize CLIP
-    clip_model = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
+    clip_model = ClipModel(version=CLIP_MODEL)
 
     # Initialize the dataset
-    dataset = RefCOCOgBaseDataset(
-        annotations_path=DATA_PATH / "annotations.csv",
-        images_path=DATA_PATH / "images",
-        embeddings_path=DATA_PATH / "embeddings",
-    )
+    dataset = RefCOCOgBaseDataset()
 
     # Create a DataLoader
     dataloader = DataLoader(

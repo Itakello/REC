@@ -35,13 +35,7 @@ class YOLOBaselineDataset(RefCOCOgBaseDataset):
 if __name__ == "__main__":
     from pprint import pprint
 
-    from ..utils.consts import DATA_PATH
-
-    dataset = YOLOBaselineDataset(
-        annotations_path=DATA_PATH / "annotations.csv",
-        images_path=DATA_PATH / "images",
-        embeddings_path=DATA_PATH / "embeddings",
-    )
+    dataset = YOLOBaselineDataset()
 
     print(f"Dataset length: {len(dataset)}")
 

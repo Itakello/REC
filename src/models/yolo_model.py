@@ -9,7 +9,7 @@ from ultralytics.engine.results import Boxes
 
 from ..datasets.yolo_baseline_dataset import YOLOBaselineDataset
 from ..interfaces.base_model import BaseModel
-from ..utils.consts import DATA_PATH, DEVICE, MODELS_PATH
+from ..utils.consts import DEVICE
 from ..utils.create_directory import create_directory
 from ..utils.save_sample import save_image_with_bboxes
 
@@ -39,14 +39,10 @@ class YOLOModel(BaseModel):
 
 if __name__ == "__main__":
     # Initialize the YOLO model with the "yolov5mu" version
-    yolo_model = YOLOModel(version="yolov5mu", models_path=MODELS_PATH)
+    yolo_model = YOLOModel(version="yolov5mu")
 
     # Initialize the YOLOBenchmarkDataset
-    dataset = YOLOBaselineDataset(
-        annotations_path=DATA_PATH / "annotations.csv",
-        images_path=DATA_PATH / "images",
-        embeddings_path=DATA_PATH / "embeddings",
-    )
+    dataset = YOLOBaselineDataset()
 
     # Get the first sample from the dataset
     first_sample = dataset[0]

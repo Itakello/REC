@@ -22,3 +22,4 @@ black
 mypy
 ollama
 pytest
+plotly

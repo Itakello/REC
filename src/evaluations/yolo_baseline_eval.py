@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
 
+import matplotlib.pyplot as plt
+import seaborn as sns
 from itakello_logging import ItakelloLogging
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 import wandb
 
@@ -10,7 +13,8 @@ from ..datasets.yolo_baseline_dataset import YOLOBaselineDataset
 from ..interfaces.base_eval import BaseEval
 from ..models.yolo_model import YOLOModel
 from ..utils.calculate_iou import calculate_iou
-from ..utils.consts import DATA_PATH, MODELS_PATH, WANDB_PROJECT
+from ..utils.consts import STATS_PATH, WANDB_PROJECT
+from ..utils.create_directory import create_directory
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -25,20 +29,16 @@ class YOLOBaselineEval(BaseEval):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.dataset = YOLOBaselineDataset(
-            annotations_path=DATA_PATH / "annotations.csv",
-            images_path=DATA_PATH / "images",
-            embeddings_path=DATA_PATH / "embeddings",
-        )
+        self.dataset = YOLOBaselineDataset(split="val")
         self.models = {
-            version: YOLOModel(version=version, models_path=MODELS_PATH)
-            for version in self.yolo_versions
+            version: YOLOModel(version=version) for version in self.yolo_versions
         }
+        create_directory(STATS_PATH)
 
     def get_dataloaders(self) -> list[tuple[str, DataLoader]]:
         return [
             (
-                "test",
+                "val",
                 DataLoader(
                     self.dataset,
                     collate_fn=self.dataset.collate_fn,
@@ -53,7 +53,7 @@ class YOLOBaselineEval(BaseEval):
         }
         total_samples = 0
 
-        for batch in self.get_dataloaders()[0][1]:
+        for batch in tqdm(self.get_dataloaders()[0][1], desc="Evaluating YOLO models"):
             images = batch["images"]
             gt_bboxes = batch["bboxes"]
 
@@ -85,6 +85,7 @@ class YOLOBaselineEval(BaseEval):
 
     def log_metrics(self, metrics: Metrics | dict[str, Metrics]) -> None:
         assert isinstance(metrics, dict)
+        heatmap_data = []
         for version, version_metrics in metrics.items():
             run = wandb.init(
                 project=WANDB_PROJECT,
@@ -96,7 +97,25 @@ class YOLOBaselineEval(BaseEval):
                     for metric in version_metrics
                 },
             )
+            values = [metric.value for metric in version_metrics]
+            heatmap_data.append(values)
             run.finish()
+
+        x_labels = [f"iou_{iou}" for iou in self.iou_thresholds]
+        y_labels = list(metrics.keys())
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(
+            data=heatmap_data,
+            annot=True,
+            fmt=".2f",
+            xticklabels=x_labels,
+            yticklabels=y_labels,
+        )
+        plt.title("YOLO Baseline Evaluation")
+        plt.xlabel("IOU Threshold")
+        plt.ylabel("YOLO Version")
+        plt.savefig(STATS_PATH / f"{self.name}_heatmap.png")
+        plt.close()
 
 
 if __name__ == "__main__":
@@ -104,7 +123,7 @@ if __name__ == "__main__":
 
     evaluator = YOLOBaselineEval(
         iou_thresholds=IOU_THRESHOLDS,
-        yolo_versions=YOLO_VERSIONS,
+        yolo_versions=YOLO_VERSIONS[-2:],
     )
     metrics = evaluator.evaluate()
     print("Evaluation metrics:")

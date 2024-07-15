@@ -11,16 +11,18 @@ from itakello_logging import ItakelloLogging
 from PIL import Image
 
 from ..interfaces.base_dataset import BaseDataset
-from ..utils.consts import DEVICE
+from ..utils.consts import (
+    DEVICE,
+    EMBEDDINGS_PATH,
+    IMAGES_PATH,
+    PROCESSED_ANNOTATIONS_PATH,
+)
 
 logger = ItakelloLogging().get_logger(__name__)
 
 
 @dataclass
 class RefCOCOgBaseDataset(BaseDataset):
-    annotations_path: Path
-    images_path: Path
-    embeddings_path: Path
     split: str | None = None
     limit: int = -1
     data: pd.DataFrame = field(init=False)
@@ -31,7 +33,7 @@ class RefCOCOgBaseDataset(BaseDataset):
         self._filter_data()
 
     def _load_data(self) -> None:
-        self.data = pd.read_csv(self.annotations_path)
+        self.data = pd.read_csv(PROCESSED_ANNOTATIONS_PATH / "annotations.csv")
         logger.info(f"Loaded {len(self.data)} total samples")
 
     def _filter_data(self) -> None:
@@ -48,7 +50,7 @@ class RefCOCOgBaseDataset(BaseDataset):
         return len(self.data)
 
     def get_image_path(self, file_name: str) -> Path:
-        return self.images_path / file_name
+        return IMAGES_PATH / file_name
 
     def get_bbox(self, bbox_str: str) -> list:
         return json.loads(bbox_str)
@@ -56,7 +58,7 @@ class RefCOCOgBaseDataset(BaseDataset):
     def get_embeddings(
         self, embeddings_filename: str, keys: list[str] | None = None
     ) -> dict[str, torch.Tensor]:
-        full_path = self.embeddings_path / embeddings_filename
+        full_path = EMBEDDINGS_PATH / embeddings_filename
         embeddings = np.load(full_path)
 
         if keys is None:
@@ -129,13 +131,7 @@ if __name__ == "__main__":
 
     from pprint import pprint
 
-    from ..utils.consts import DATA_PATH
-
-    dataset = RefCOCOgBaseDataset(
-        annotations_path=DATA_PATH / "annotations.csv",
-        images_path=DATA_PATH / "images",
-        embeddings_path=DATA_PATH / "embeddings",
-    )
+    dataset = RefCOCOgBaseDataset()
 
     print(f"Dataset length: {len(dataset)}")
 

@@ -21,7 +21,9 @@ from src.utils.consts import (
     YOLO_VERSIONS,
 )
 
-ItakelloLogging(excluded_modules=[], debug=True)
+ItakelloLogging(
+    excluded_modules=["httpcore.http11", "httpcore.connection", "httpx"], debug=True
+)
 
 os.environ["WANDB_SILENT"] = "true"
 
@@ -34,28 +36,27 @@ def main() -> None:
         base_model=LLM_MODEL,
         system_prompt_path=LLM_SYSTEM_PROMPT_PATH,
     )
-    clip = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
+    clip = ClipModel(version=CLIP_MODEL)
     pm = PreprocessManager(
         data_path=DATA_PATH,
-        images_path=dm.images_path,
         raw_annotations_path=dm.annotations_path,
         llm=llm,
         clip=clip,
     )
-    # pm.process_data(sample_size=100)
+    # pm.process_data()
 
     yolo_baseline_eval = YOLOBaselineEval(
         iou_thresholds=IOU_THRESHOLDS,
         yolo_versions=YOLO_VERSIONS,
     )
-    # yolo_metrics = yolo_baseline_eval.evaluate()
+    yolo_metrics = yolo_baseline_eval.evaluate()
 
     # NOTE: 1 - Choose YOLO model and IOU threshold
 
-    iou_threshold = 0.5
+    """iou_threshold = 0.5
     yolo_model = YOLOModel(version="yolov5mu", models_path=MODELS_PATH)
 
-    pm.add_yolo_predictions(yolo_model=yolo_model)
+    annotations_file_name = pm.add_yolo_predictions(yolo_model=yolo_model, previous_file_name=annotations_file_name)
 
     similarity_baseline_eval = SimilarityBaselineEval(
         highlighting_methods=HIGHLIGHTING_METHODS, sentences_types=SENTENCES_TYPES
@@ -67,7 +68,7 @@ def main() -> None:
     sentences_type = "combined_sentences"
     highlighting_method = "ellipse"
 
-    pm.add_highlighting_embeddings(highlighting_method=highlighting_method)
+    pm.add_highlighting_embeddings(highlighting_method=highlighting_method)"""
 
 
 if __name__ == "__main__":

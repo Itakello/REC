@@ -10,7 +10,7 @@ from ..classes.metric import Metrics
 from ..datasets.similarity_baseline_dataset import SimilarityBaselineDataset
 from ..interfaces.base_eval import BaseEval
 from ..models.clip_model import ClipModel
-from ..utils.consts import CLIP_MODEL, DATA_PATH, MODELS_PATH, WANDB_PROJECT
+from ..utils.consts import CLIP_MODEL, WANDB_PROJECT
 
 logger = ItakelloLogging().get_logger(__name__)
 
@@ -25,17 +25,13 @@ class SimilarityBaselineEval(BaseEval):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        self.dataset = SimilarityBaselineDataset(
-            annotations_path=DATA_PATH / "annotations.csv",
-            images_path=DATA_PATH / "images",
-            embeddings_path=DATA_PATH / "embeddings",
-        )
-        self.clip_model = ClipModel(version=CLIP_MODEL, models_path=MODELS_PATH)
+        self.dataset = SimilarityBaselineDataset()
+        self.clip_model = ClipModel(version=CLIP_MODEL)
 
     def get_dataloaders(self) -> list[tuple[str, DataLoader]]:
         return [
             (
-                "test",
+                "val",
                 DataLoader(
                     self.dataset, collate_fn=self.dataset.collate_fn, shuffle=False
                 ),
