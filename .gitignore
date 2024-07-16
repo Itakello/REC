@@ -1,9 +1,9 @@
 ## Folders
-**/wandb/
-**/data/
+/wandb/
+/data/
 /models/
+/logs/
 **/__pycache__/
-**/logs/
 **/.mypy_cache/
 **/.pytest_cache/
 
