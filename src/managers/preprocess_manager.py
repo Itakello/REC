@@ -419,7 +419,7 @@ class PreprocessManager(BaseClass):
             file_name="7_filtered_valid_samples.csv",
         )
 
-        df = self.add_correct_candidate_idx(df, iou_threshold)
+        df = self.add_correct_candidate_idx(df)
         self.save_dataframe_to_csv(
             df,
             file_name="8_added_correct_candidate_idx_and_ious.csv",
