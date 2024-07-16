@@ -103,14 +103,16 @@ class TrainerManager(BaseClass):
             outputs = self.model(**inputs)
             loss = criterion(outputs, labels)
             # TODO save loss in metrics
-            loss.backward()
-            optimizer.step()
 
-            total_loss += loss.item()
             # todo CHECK THEM
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
 
         metrics = Metrics()
         metrics.add("avg_loss", total_loss / len(self.dataloaders["train"]))

@@ -1,7 +1,9 @@
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
 import torch
+import torch.nn.functional as F
 from itakello_logging import ItakelloLogging
 
 from ..utils.consts import DEVICE
@@ -28,23 +30,36 @@ class ClassificationV0Dataset(RefCOCOgBaseDataset):
         candidates_embeddings = embeddings["candidates_embeddings"]
         combined_sentences_embedding = embeddings["combined_sentences_features"]
 
-        # Pad or truncate candidates_embeddings to top_k
+        # Get the ordered indices of candidates
+        ordered_indices = json.loads(row["ordered_candidate_indices"])
+
+        # Select top-k candidates based on ordered indices
+        top_k_indices = ordered_indices[: self.top_k]
+        candidates_embeddings = candidates_embeddings[top_k_indices]
+
+        # Pad if necessary
         num_candidates = candidates_embeddings.shape[0]
         if num_candidates < self.top_k:
             padding = torch.stack(
                 [self.empty_embedding] * (self.top_k - num_candidates)
             )
             candidates_embeddings = torch.cat([candidates_embeddings, padding], dim=0)
-        else:
-            candidates_embeddings = candidates_embeddings[: self.top_k]
+
+        correct_candidate_idx = row["ordered_correct_candidate_idx"]
+
+        # Create target with an extra class for "no correct candidate"
+        if correct_candidate_idx == -1:
+            correct_candidate_idx = self.top_k
+
+        target = F.one_hot(
+            torch.tensor(correct_candidate_idx), num_classes=self.top_k + 1
+        ).float()
 
         item.update(
             {
                 "candidates_embeddings": candidates_embeddings,
                 "combined_sentences_embedding": combined_sentences_embedding,
-                "correct_candidate_idx": torch.tensor(
-                    row["ordered_correct_candidate_idx"]
-                ).int(),
+                "target": target,
             }
         )
 
@@ -55,7 +70,7 @@ class ClassificationV0Dataset(RefCOCOgBaseDataset):
         collated_batch = {
             "candidates_embeddings": [],
             "combined_sentences_embeddings": [],
-            "correct_candidate_indices": [],
+            "targets": [],
         }
 
         for item in batch:
@@ -65,9 +80,7 @@ class ClassificationV0Dataset(RefCOCOgBaseDataset):
             collated_batch["combined_sentences_embeddings"].append(
                 item["combined_sentences_embedding"]
             )
-            collated_batch["correct_candidate_indices"].append(
-                item["correct_candidate_idx"]
-            )
+            collated_batch["targets"].append(item["target"])
 
         collated_batch["candidates_embeddings"] = torch.stack(  # type: ignore
             collated_batch["candidates_embeddings"]
@@ -75,9 +88,7 @@ class ClassificationV0Dataset(RefCOCOgBaseDataset):
         collated_batch["combined_sentences_embeddings"] = torch.stack(  # type: ignore
             collated_batch["combined_sentences_embeddings"]
         )
-        collated_batch["correct_candidate_indices"] = torch.stack(  # type: ignore
-            collated_batch["correct_candidate_indices"]
-        )
+        collated_batch["targets"] = torch.stack(collated_batch["targets"])  # type: ignore
 
         return collated_batch
 
@@ -105,10 +116,5 @@ if __name__ == "__main__":
             print(f"{key}: {value.shape}")
         else:
             print(f"{key}: {type(value)}")
-
-    # Print the first item's correct candidate index
-    print(
-        f"First item's correct candidate index: {batch['correct_candidate_indices'][0]}"
-    )
 
     logger.info("ClassificationV0Dataset test completed successfully")
