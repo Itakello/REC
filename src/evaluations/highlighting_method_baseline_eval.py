@@ -70,10 +70,13 @@ class HighlightingMethodEval(BaseEval):
                     # Rank candidates based on similarities
                     _, sorted_indices = torch.sort(similarities, descending=True)
 
+                    if correct_candidate_idx == -1:
+                        correct_candidate_rank = 11
                     # Find the rank of the correct candidate
-                    correct_candidate_rank = torch.where(
-                        sorted_indices == correct_candidate_idx
-                    )[0].item()
+                    else:
+                        correct_candidate_rank = torch.where(
+                            sorted_indices == correct_candidate_idx
+                        )[0].item()
                     results[method].append(correct_candidate_rank)
 
         # Calculate cumulative distributions and create Metrics objects
@@ -127,13 +130,39 @@ class HighlightingMethodEval(BaseEval):
             name=f"{self.name}_cumulative_rank_distribution",
         )
 
+        # Prepare data for the plot
+        data = []
         for method, method_metrics in metrics.items():
-            for metric in method_metrics:
-                wandb.log({f"{method}_{metric.name}": metric.value})
+            values = [metric.value for metric in method_metrics]
+            data.append(
+                wandb.Table(
+                    data=[[i + 1, v] for i, v in enumerate(values)],
+                    columns=["rank", "cumulative_proportion"],
+                )
+            )
 
-        # Log the plot
+        # Create and log the plot
+        plot = wandb.plot.line_series(
+            xs=[list(range(1, 11)) for _ in self.highlighting_methods],
+            ys=[
+                [metric.value for metric in metrics[method]]
+                for method in self.highlighting_methods
+            ],
+            keys=self.highlighting_methods,
+            title="Cumulative Rank Distribution",
+            xname="Rank",
+            yname="Cumulative Proportion",
+        )
+
+        wandb.log({"cumulative_rank_distribution": plot})
+
+        # Log the raw data as well
+        for method, table in zip(self.highlighting_methods, data):
+            wandb.log({f"{method}_data": table})
+
+        # Log the matplotlib plot as an image for comparison
         plot_path = STATS_PATH / f"{self.name}_cumulative_rank_distribution.png"
-        wandb.log({"cumulative_rank_distribution": wandb.Image(str(plot_path))})
+        wandb.log({"matplotlib_plot": wandb.Image(str(plot_path))})
 
         run.finish()
 

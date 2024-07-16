@@ -351,7 +351,7 @@ class PreprocessManager(BaseClass):
     ) -> pd.DataFrame:
         valid_indices = []
         for index, row in df.iterrows():
-            if row["split"] == "test":
+            if row["split"] in ["test", "val"]:
                 valid_indices.append(index)
                 continue
 
@@ -370,7 +370,10 @@ class PreprocessManager(BaseClass):
         logger.confirmation(f"Filtered dataset to {len(df)} valid samples")
         return df
 
-    def add_correct_candidate_idx(self, df: pd.DataFrame) -> pd.DataFrame:
+    def add_correct_candidate_idx(
+        self, df: pd.DataFrame, iou_threshold: float
+    ) -> pd.DataFrame:
+        # Add correct_candidate_idx and correct_candidate_iou column to the DataFrame (correct_candidate_idx-1 if no match)
         logger.info("Starting correct candidate index determination process")
 
         total_rows = len(df)
@@ -388,8 +391,12 @@ class PreprocessManager(BaseClass):
             # Calculate IoU for all predictions
             ious = [calculate_iou(pred, gt_bbox)[0] for pred in yolo_predictions]
 
-            correct_candidate_indices.append(np.argmax(ious))
-            correct_candidate_ious.append(np.max(ious))
+            max_iou = np.max(ious)
+            correct_candidate_index = (
+                np.argmax(ious) if max_iou >= iou_threshold else -1
+            )
+            correct_candidate_indices.append(correct_candidate_index)
+            correct_candidate_ious.append(max_iou)
 
             pbar.update(1)
 
@@ -402,31 +409,22 @@ class PreprocessManager(BaseClass):
         logger.confirmation("Updated CSV file saved with correct candidate indices")
         return df
 
-    def process_data_2(self, yolo_model: YOLOModel, iou_threshold: float = 0.5) -> None:
+    def process_data_2(self, yolo_model: YOLOModel, iou_threshold: float) -> None:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
 
-        # Add YOLO predictions
-        df = self.add_yolo_predictions(df, yolo_model)
-        self.save_dataframe_to_csv(
-            df,
-            file_name="6_added_yolo_predictions.csv",
-        )
+        # df = self.add_yolo_predictions(df, yolo_model)
+        # self.save_dataframe_to_csv(df, "6_added_yolo_predictions.csv")
 
-        # Filter valid samples
         df = self.filter_valid_samples(df, iou_threshold)
-        self.save_dataframe_to_csv(
-            df,
-            file_name="7_filtered_valid_samples.csv",
-        )
+        self.save_dataframe_to_csv(df, "7_filtered_valid_samples.csv")
 
-        df = self.add_correct_candidate_idx(df)
-        self.save_dataframe_to_csv(
-            df,
-            file_name="8_added_correct_candidate_idx_and_ious.csv",
-        )
+        df = self.add_correct_candidate_idx(df, iou_threshold)
+        self.save_dataframe_to_csv(df, "8_added_correct_candidate_idx_and_ious.csv")
         self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
 
-    def add_candidates_embeddings(self, highlighting_method: str) -> None:
+    def add_candidates_embeddings(
+        self, df: pd.DataFrame, highlighting_method: str
+    ) -> pd.DataFrame:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
         logger.info(
             f"Starting highlighting encoding process using {highlighting_method} method"
@@ -474,8 +472,9 @@ class PreprocessManager(BaseClass):
         logger.confirmation(
             f"Highlighting encodings ({highlighting_method}) added to embeddings files"
         )
+        return df
 
-    def order_candidates_and_update_index(self) -> None:
+    def order_candidates_and_update_index(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
         logger.info("Starting to order candidates and update correct candidate index")
 
@@ -485,7 +484,7 @@ class PreprocessManager(BaseClass):
         ordered_indices = []
         ordered_correct_indices = []
 
-        for idx, row in df.iterrows():
+        for _, row in df.iterrows():
             embedding_path = self.embeddings_path / row["embeddings_filename"]
             with np.load(embedding_path) as data:
                 candidates_embeddings = torch.from_numpy(data["candidates_embeddings"])
@@ -517,14 +516,14 @@ class PreprocessManager(BaseClass):
         df["ordered_candidate_indices"] = ordered_indices
         df["ordered_correct_candidate_idx"] = ordered_correct_indices
 
-        self.save_dataframe_to_csv(df, file_name="10_ordered_candidates.csv")
-        self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
         logger.confirmation(
             "Updated CSV file with ordered candidates and correct indices"
         )
+        return df
 
-    def filter_train_samples_with_correct_candidate(self, top_k: int = 6) -> None:
-        df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
+    def filter_train_samples_with_correct_candidate(
+        self, df: pd.DataFrame, top_k: int
+    ) -> pd.DataFrame:
         logger.info("Starting to filter train samples with correct candidate")
 
         initial_count = len(df)
@@ -540,11 +539,23 @@ class PreprocessManager(BaseClass):
         logger.info(f"Removed samples count: {removed_count}")
         logger.info(f"Final sample count: {final_count}")
 
-        self.save_dataframe_to_csv(df, file_name="11_filtered_train_samples.csv")
-        self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
         logger.confirmation(
             "Filtered train samples with correct candidate within top-k"
         )
+        return df
+
+    def process_data_3(self, highlighting_method: str, top_k: int) -> None:
+        df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
+
+        df = self.add_candidates_embeddings(df, highlighting_method)
+        self.save_dataframe_to_csv(df, "9_added_candidates_embeddings.csv")
+
+        df = self.order_candidates_and_update_index(df)
+        self.save_dataframe_to_csv(df, "10_ordered_candidates_and_correct_indices.csv")
+
+        df = self.filter_train_samples_with_correct_candidate(df, top_k)
+        self.save_dataframe_to_csv(df, "11_filtered_train_samples.csv")
+        self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
 
 
 if __name__ == "__main__":
