@@ -128,19 +128,25 @@ class RefCOCOgBaseDataset(BaseDataset):
         return collated_batch
 
     @classmethod
-    def get_dataloaders(cls, batch_size: int = 32) -> dict[str, DataLoader]:
+    def get_dataloaders(
+        cls, batch_size: int = 32, limit: int = -1
+    ) -> dict[str, DataLoader]:
         dataloaders = {
             "train": DataLoader(
-                cls(split="train"),
+                cls(split="train", limit=limit),
                 batch_size=batch_size,
                 collate_fn=cls.collate_fn,
                 shuffle=True,
             ),
             "val": DataLoader(
-                cls(split="val"), batch_size=batch_size, collate_fn=cls.collate_fn
+                cls(split="val", limit=limit),
+                batch_size=batch_size,
+                collate_fn=cls.collate_fn,
             ),
             "test": DataLoader(
-                cls(split="test"), batch_size=batch_size, collate_fn=cls.collate_fn
+                cls(split="test", limit=limit),
+                batch_size=batch_size,
+                collate_fn=cls.collate_fn,
             ),
         }
         return dataloaders

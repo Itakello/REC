@@ -1,11 +1,9 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from itakello_logging import ItakelloLogging
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import wandb
@@ -17,13 +15,7 @@ from ..datasets.highlighting_method_baseline_dataset import (
 )
 from ..interfaces.base_eval import BaseEval
 from ..models.clip_model import ClipModel
-from ..utils.consts import (
-    CLIP_MODEL,
-    DEVICE,
-    HIGHLIGHTING_METHODS,
-    STATS_PATH,
-    WANDB_PROJECT,
-)
+from ..utils.consts import CLIP_MODEL, HIGHLIGHTING_METHODS, STATS_PATH, WANDB_PROJECT
 from ..utils.create_directory import create_directory
 
 logger = ItakelloLogging().get_logger(__name__)
@@ -31,10 +23,10 @@ logger = ItakelloLogging().get_logger(__name__)
 
 @dataclass
 class HighlightingMethodEval(BaseEval):
-    highlighting_methods: List[str] = field(
+    highlighting_methods: list[str] = field(
         default_factory=lambda: HIGHLIGHTING_METHODS
     )
-    sentence_type: str = "combined_sentences"
+    sentences_type: str = "combined_sentences"
     name: str = "highlighting-method"
     clip_model: ClipModel = field(init=False)
 
@@ -42,38 +34,47 @@ class HighlightingMethodEval(BaseEval):
         super().__post_init__()
         self.clip_model = ClipModel(version=CLIP_MODEL)
 
-    def evaluate(self) -> Dict[str, Metrics]:
+    def evaluate(self) -> dict[str, Metrics]:
         results = {method: [] for method in self.highlighting_methods}
         dataloader = HighlightingMethodBaselineDataset.get_dataloaders()["val"]
-        total_samples = len(dataloader)
+        total_samples = 0
 
         for batch in tqdm(dataloader, desc="Evaluating highlighting methods"):
-            image = batch["images"][0]
-            yolo_predictions = batch["yolo_predictions"][0]
-            correct_candidate_idx = batch["correct_candidates_idx"][0]
-            sentence_embedding = batch[f"{self.sentence_type}_embeddings"][0]
+            for (
+                image,
+                yolo_predictions,
+                correct_candidate_idx,
+                sentence_embedding,
+            ) in zip(
+                batch["images"],
+                batch["yolo_predictions"],
+                batch["correct_candidates_idx"],
+                batch[f"{self.sentences_type}_embeddings"],
+            ):
+                total_samples += 1
+                for method in self.highlighting_methods:
+                    highlighted_images = [
+                        HighlightingModality.apply_highlighting(
+                            image.copy(), bbox, method
+                        )
+                        for bbox in yolo_predictions
+                    ]
+                    highlighted_embeddings = self.clip_model.encode_images(
+                        highlighted_images
+                    )
 
-            for method in self.highlighting_methods:
-                highlighted_images = [
-                    HighlightingModality.apply_highlighting(image.copy(), bbox, method)
-                    for bbox in yolo_predictions
-                ]
-                highlighted_embeddings = self.clip_model.encode_images(
-                    highlighted_images
-                )
+                    similarities = self.clip_model.get_similarity(
+                        highlighted_embeddings, sentence_embedding
+                    ).squeeze()
 
-                similarities = self.clip_model.get_similarity(
-                    highlighted_embeddings, sentence_embedding
-                ).squeeze()
+                    # Rank candidates based on similarities
+                    _, sorted_indices = torch.sort(similarities, descending=True)
 
-                # Rank candidates based on similarities
-                _, sorted_indices = torch.sort(similarities, descending=True)
-
-                # Find the rank of the correct candidate
-                correct_candidate_rank = torch.where(
-                    sorted_indices == correct_candidate_idx
-                )[0].item()
-                results[method].append(correct_candidate_rank)
+                    # Find the rank of the correct candidate
+                    correct_candidate_rank = torch.where(
+                        sorted_indices == correct_candidate_idx
+                    )[0].item()
+                    results[method].append(correct_candidate_rank)
 
         # Calculate cumulative distributions and create Metrics objects
         metrics = {}
@@ -85,14 +86,12 @@ class HighlightingMethodEval(BaseEval):
             for rank, value in enumerate(cumulative_dist, start=1):
                 metrics[method].add(f"{rank}", value)
 
-        self.plot_cumulative_distributions(metrics, total_samples)
+        self.plot_cumulative_distributions(metrics)
         self.log_metrics(metrics)
 
         return metrics
 
-    def plot_cumulative_distributions(
-        self, metrics: Dict[str, Metrics], total_samples: int
-    ) -> None:
+    def plot_cumulative_distributions(self, metrics: dict[str, Metrics]) -> None:
         plt.figure(figsize=(12, 8))
         for method, method_metrics in metrics.items():
             dist = [metric.value for metric in method_metrics]
@@ -100,13 +99,15 @@ class HighlightingMethodEval(BaseEval):
 
         plt.xlabel("Rank")
         plt.ylabel("Cumulative Proportion")
-        plt.title(f"Cumulative Rank Distribution (Total Samples: {total_samples})")
+        plt.title("Cumulative Rank Distribution")
         plt.legend()
         plt.grid(True)
 
+        plt.ylim(0, 1)
+
         # Set y-axis to display proportions
         plt.gca().yaxis.set_major_formatter(
-            plt.FuncFormatter(lambda y, _: "{:.0%}".format(y))
+            plt.FuncFormatter(lambda y, _: f"{100*y:.0f}%")  # type: ignore
         )
 
         # Save the plot
@@ -119,7 +120,8 @@ class HighlightingMethodEval(BaseEval):
 
         logger.confirmation(f"Cumulative rank distribution plot saved to {plot_path}")
 
-    def log_metrics(self, metrics: Dict[str, Metrics]) -> None:
+    def log_metrics(self, metrics: Metrics | dict[str, Metrics]) -> None:
+        assert isinstance(metrics, dict)
         run = wandb.init(
             project=WANDB_PROJECT,
             name=f"{self.name}_cumulative_rank_distribution",

@@ -13,7 +13,7 @@ from .base_model import BaseModel
 
 @dataclass(eq=False)
 class BaseCustomModel(BaseModel, nn.Module, ABC):
-    configuration: dict = field(default_factory=dict)
+    config: dict = field(default_factory=dict)
     version_path: Path = field(init=False)
     config_file_name: str = "config.json"
     from_checkpoint: bool = False
@@ -40,7 +40,7 @@ class BaseCustomModel(BaseModel, nn.Module, ABC):
         """
         config_file = self.version_path / self.config_file_name
         with open(config_file, "w") as f:
-            json.dump(self.configuration, f, indent=4)
+            json.dump(self.config, f, indent=4)
 
     def _load_configuration(self) -> dict:
         """
@@ -99,12 +99,12 @@ class BaseCustomModel(BaseModel, nn.Module, ABC):
         """
         latest_checkpoint = self._get_latest_checkpoint()
         if latest_checkpoint is None:
-            return 0, float("inf"), self.configuration
+            return 0, float("inf"), self.config
 
         checkpoint_data = self._load_checkpoint(latest_checkpoint)
         optimizer.load_state_dict(checkpoint_data["optimizer_state_dict"])
-        self.configuration = self._load_configuration()
-        return checkpoint_data["epoch"], checkpoint_data["loss"], self.configuration
+        self.config = self._load_configuration()
+        return checkpoint_data["epoch"], checkpoint_data["loss"], self.config
 
     @classmethod
     def load_from_config(cls, name: str, config_num: int) -> "BaseCustomModel":
@@ -119,7 +119,7 @@ class BaseCustomModel(BaseModel, nn.Module, ABC):
         with open(model_path / cls.config_file_name, "r") as f:
             configuration = json.load(f)
 
-        model = cls(configuration=configuration, from_checkpoint=True)  # type: ignore
+        model = cls(config=configuration, from_checkpoint=True)  # type: ignore
         model.version_num = config_num
         model.version_path = model_path
         model.version = version
