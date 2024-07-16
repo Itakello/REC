@@ -46,20 +46,20 @@ def main() -> None:
     )
     # pm.process_data()
 
-    # yolo_baseline_eval = YOLOBaselineEval(
-    #    iou_thresholds=IOU_THRESHOLDS,
-    #    yolo_versions=YOLO_VERSIONS,
-    # )
-    # yolo_metrics = yolo_baseline_eval.evaluate()
+    """yolo_baseline_eval = YOLOBaselineEval(
+    iou_thresholds=IOU_THRESHOLDS,
+    yolo_versions=YOLO_VERSIONS,
+    )
+    yolo_metrics = yolo_baseline_eval.evaluate()"""
 
     # NOTE: 1 - Choose YOLO model and IOU threshold
 
     iou_threshold = 0.8
     yolo_model = YOLOModel(version="yolov8x")
 
-    # pm.process_data_2(yolo_model=yolo_model, iou_threshold=iou_threshold)
+    """pm.process_data_2(yolo_model=yolo_model, iou_threshold=iou_threshold)
 
-    """similarity_baseline_eval = SimilarityBaselineEval(
+    similarity_baseline_eval = SimilarityBaselineEval(
         highlighting_methods=HIGHLIGHTING_METHODS, sentences_types=SENTENCES_TYPES
     )
     similarity_metrics = similarity_baseline_eval.evaluate()"""
@@ -68,19 +68,15 @@ def main() -> None:
 
     sentences_type = "combined_sentences"
 
-    """highlighting_method_baseline_eval = HighlightingMethodEval(
+    highlighting_method_baseline_eval = HighlightingMethodEval(
         highlighting_methods=HIGHLIGHTING_METHODS, sentences_type=sentences_type
     )
-    highlighting_method_baseline_eval.evaluate()"""
+    highlighting_method_baseline_eval.evaluate()
 
     highlighting_method = "crop"
     top_k = 6
 
-    # pm.add_top_candidates_embeddings(
-    #    highlighting_method=highlighting_method, top_k=top_k
-    # )
-
-    pm.filter_train_samples_with_correct_candidate(top_k=top_k)
+    pm.process_data_3(highlighting_method=highlighting_method, top_k=top_k)
 
 
 if __name__ == "__main__":
