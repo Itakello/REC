@@ -46,6 +46,7 @@ LLM_MODEL = "llama3"
 
 # Paths
 DATA_PATH = Path("./data")
+CONFIG_PATH = Path("./config")
 PROCESSED_ANNOTATIONS_PATH = DATA_PATH / "processed_annotations"
 EMBEDDINGS_PATH = DATA_PATH / "embeddings"
 IMAGES_PATH = DATA_PATH / "images"

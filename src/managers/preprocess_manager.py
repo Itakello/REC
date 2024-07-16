@@ -346,7 +346,7 @@ class PreprocessManager(BaseClass):
         logger.confirmation("Updated CSV file saved with YOLO predictions")
         return df
 
-    def filter_valid_samples(
+    def filter_train_valid_samples(
         self, df: pd.DataFrame, iou_threshold: float = 0.5
     ) -> pd.DataFrame:
         valid_indices = []
@@ -415,7 +415,7 @@ class PreprocessManager(BaseClass):
         # df = self.add_yolo_predictions(df, yolo_model)
         # self.save_dataframe_to_csv(df, "6_added_yolo_predictions.csv")
 
-        df = self.filter_valid_samples(df, iou_threshold)
+        df = self.filter_train_valid_samples(df, iou_threshold)
         self.save_dataframe_to_csv(df, "7_filtered_valid_samples.csv")
 
         df = self.add_correct_candidate_idx(df, iou_threshold)
@@ -424,7 +424,7 @@ class PreprocessManager(BaseClass):
 
     def add_candidates_embeddings(
         self, df: pd.DataFrame, highlighting_method: str
-    ) -> pd.DataFrame:
+    ) -> None:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
         logger.info(
             f"Starting highlighting encoding process using {highlighting_method} method"
@@ -472,11 +472,10 @@ class PreprocessManager(BaseClass):
         logger.confirmation(
             f"Highlighting encodings ({highlighting_method}) added to embeddings files"
         )
-        return df
 
-    def order_candidates_and_update_index(self, df: pd.DataFrame) -> pd.DataFrame:
+    def add_order_candidates_and_correct_index(self, df: pd.DataFrame) -> pd.DataFrame:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
-        logger.info("Starting to order candidates and update correct candidate index")
+        logger.info("Adding order candidates and correct ordered candidate index")
 
         total_rows = len(df)
         pbar = tqdm(total=total_rows, desc="Ordering candidates", unit="sample")
@@ -498,15 +497,24 @@ class PreprocessManager(BaseClass):
             )
 
             # Get sorted indices
-            sorted_indices = torch.argsort(similarities, descending=True).tolist()
+            sorted_indices = torch.argsort(
+                similarities.squeeze(), descending=True
+            ).tolist()
 
             # Update ordered indices
-            ordered_indices.append(json.dumps(sorted_indices))
+            ordered_indices.append(sorted_indices)
 
             # Update correct candidate index
             correct_idx = row["correct_candidate_idx"]
-            ordered_correct_idx = sorted_indices.index(correct_idx)
-            ordered_correct_indices.append(ordered_correct_idx)
+            if correct_idx == -1:
+                ordered_correct_indices.append(-1)
+            else:
+                if isinstance(sorted_indices, int):
+                    assert sorted_indices == 0
+                    ordered_correct_idx = correct_idx
+                else:
+                    ordered_correct_idx = sorted_indices.index(correct_idx)
+                ordered_correct_indices.append(ordered_correct_idx)
 
             pbar.update(1)
 
@@ -547,14 +555,14 @@ class PreprocessManager(BaseClass):
     def process_data_3(self, highlighting_method: str, top_k: int) -> None:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
 
-        df = self.add_candidates_embeddings(df, highlighting_method)
-        self.save_dataframe_to_csv(df, "9_added_candidates_embeddings.csv")
+        # df = self.add_candidates_embeddings(df, highlighting_method)
+        # self.save_dataframe_to_csv(df, "9_added_candidates_embeddings.csv")
 
-        df = self.order_candidates_and_update_index(df)
-        self.save_dataframe_to_csv(df, "10_ordered_candidates_and_correct_indices.csv")
+        df = self.add_order_candidates_and_correct_index(df)
+        self.save_dataframe_to_csv(df, "9_ordered_candidates_and_correct_indices.csv")
 
         df = self.filter_train_samples_with_correct_candidate(df, top_k)
-        self.save_dataframe_to_csv(df, "11_filtered_train_samples.csv")
+        self.save_dataframe_to_csv(df, "10_filtered_train_samples.csv")
         self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
 
 

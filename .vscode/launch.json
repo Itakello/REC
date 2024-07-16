@@ -154,6 +154,17 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Classification v0 Dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.datasets.classification_v0_dataset",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
         }
     ]
 }

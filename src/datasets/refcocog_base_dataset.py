@@ -63,7 +63,9 @@ class RefCOCOgBaseDataset(BaseDataset):
         embeddings = np.load(full_path)
 
         if keys is None:
-            return {k: embeddings[k] for k in embeddings.keys()}
+            return {
+                k: torch.from_numpy(embeddings[k]).to(DEVICE) for k in embeddings.keys()
+            }
 
         result = {}
         for key in keys:
