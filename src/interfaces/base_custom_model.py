@@ -1,5 +1,5 @@
 import json
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -25,6 +25,14 @@ class BaseCustomModel(BaseModel, nn.Module, ABC):
             self.version_num = self._get_next_version_num(model_path)
             self.version_path = create_directory(model_path / f"v{self.version_num}")
             self._save_configuration()
+
+    @abstractmethod
+    def prepare_input(self, batch: dict) -> tuple[list[torch.Tensor], torch.Tensor]:
+        pass
+
+    @abstractmethod
+    def calculate_accuracy(self, outputs: torch.Tensor, labels: torch.Tensor) -> int:
+        pass
 
     def _get_next_version_num(self, base_path: Path) -> int:
         existing_configs = [

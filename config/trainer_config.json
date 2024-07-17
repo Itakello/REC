@@ -1,8 +1,9 @@
 {
     "classification_v0": {
         "learning_rates": [
+            0.0001,
             0.001,
-            0.0005
+            0.01
         ],
         "optimizers": [
             {
@@ -18,14 +19,11 @@
             }
         ],
         "batch_sizes": [
-            32,
-            64
+            64,
+            32
         ],
         "loss": [
             "CrossEntropyLoss"
-        ],
-        "weight_decay": [
-            0.0001
         ]
     }
 }

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -25,6 +26,8 @@ class ClassificationV0Model(BaseCustomModel):
         self.fc3 = nn.Linear(128, 64)
         self.bn3 = nn.BatchNorm1d(64)
         self.fc4 = nn.Linear(64, self.num_candidates + 1)
+        # add soft max
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x shape: [batch_size, 6, 2048]
@@ -32,26 +35,33 @@ class ClassificationV0Model(BaseCustomModel):
         x = F.relu(self.bn1(self.fc1(x)))
         x = F.relu(self.bn2(self.fc2(x)))
         x = F.relu(self.bn3(self.fc3(x)))
-        x = self.fc4(x)  # shape: [batch_size, 6]
+        x = self.softmax(self.fc4(x))  # shape: [batch_size, 6]
         return x
 
     def __hash__(self) -> int:
         return super().__hash__()
 
-    def prepare_input(self, batch):
-        inputs = {
-            "candidates_embeddings": batch["candidates_embeddings"].to(DEVICE),
-            "combined_sentences_embeddings": batch["combined_sentences_embeddings"].to(
-                DEVICE
-            ),
-        }
-        labels = batch["targets"].to(DEVICE)
-        return inputs, labels
+    def prepare_input(self, batch: dict) -> tuple[list[torch.Tensor], torch.Tensor]:
+        candidates_embeddings = batch["candidates_embeddings"].to(DEVICE)
+        combined_sentences_embeddings = batch["combined_sentences_embeddings"].to(
+            DEVICE
+        )
 
-    def calculate_accuracy(self, outputs, labels):
+        _, num_candidates, _ = candidates_embeddings.shape
+
+        combined_repeated = combined_sentences_embeddings.repeat(1, num_candidates, 1)
+
+        # Concatenate candidates_embeddings and combined_expanded
+        inputs = torch.cat([candidates_embeddings, combined_repeated], dim=-1)
+
+        labels = batch["targets"].to(DEVICE)
+
+        return [inputs], labels
+
+    def calculate_accuracy(self, outputs: torch.Tensor, labels: torch.Tensor) -> int:
         _, predicted = torch.max(outputs.data, 1)
         correct = (predicted == torch.argmax(labels, dim=1)).sum().item()
-        return correct
+        return int(correct)
 
 
 if __name__ == "__main__":

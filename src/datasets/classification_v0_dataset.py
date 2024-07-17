@@ -33,6 +33,9 @@ class ClassificationV0Dataset(RefCOCOgBaseDataset):
         # Get the ordered indices of candidates
         ordered_indices = json.loads(row["ordered_candidate_indices"])
 
+        if isinstance(ordered_indices, int):
+            ordered_indices = [ordered_indices]
+
         # Select top-k candidates based on ordered indices
         top_k_indices = ordered_indices[: self.top_k]
         candidates_embeddings = candidates_embeddings[top_k_indices]
@@ -48,7 +51,7 @@ class ClassificationV0Dataset(RefCOCOgBaseDataset):
         correct_candidate_idx = row["ordered_correct_candidate_idx"]
 
         # Create target with an extra class for "no correct candidate"
-        if correct_candidate_idx == -1:
+        if correct_candidate_idx == -1 or correct_candidate_idx > self.top_k:
             correct_candidate_idx = self.top_k
 
         target = F.one_hot(

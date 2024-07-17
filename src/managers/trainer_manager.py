@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from itakello_logging import ItakelloLogging
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 import wandb
 
@@ -82,11 +83,10 @@ class TrainerManager(BaseClass):
                             "optimizer": optimizer_config["type"],
                             "batch_size": batch_size,
                             "loss": self.config["loss"][0],
-                            "weight_decay": self.config["weight_decay"][0],
                         }
                         with wandb.init(
                             project=WANDB_PROJECT,
-                            name=f"{self.model.name}_training",
+                            name=f"{self.model.name}",
                             config=run_config,
                         ):
                             self._train_single_configuration(
@@ -106,7 +106,7 @@ class TrainerManager(BaseClass):
             }
             with wandb.init(
                 project=WANDB_PROJECT,
-                name=f"{self.model.name}_training",
+                name=f"{self.model.name}",
                 config=run_config,
             ):
                 self._train_single_configuration(
@@ -135,14 +135,21 @@ class TrainerManager(BaseClass):
             start_epoch, _, _ = self.model.restart_from_checkpoint(optimizer)
             logger.info(f"Resuming training from epoch {start_epoch}")
 
+        val_metrics = self.evaluate("val")
+        self._log_metrics(-1, val_metrics, "val")
+
+        self.model.save_checkpoint(0, optimizer, val_metrics["loss"])
+
         for epoch in range(start_epoch, epochs):
             train_metrics = self._train_epoch(optimizer, criterion)
             self._log_metrics(epoch, train_metrics, "train")
 
-            val_metrics = self.evaluate()
+            val_metrics = self.evaluate("val")
             self._log_metrics(epoch, val_metrics, "val")
 
             if (epoch + 1) % 5 == 0:
+                test_metrics = self.evaluate("test")
+                self._log_metrics(epoch, test_metrics, "test")
                 self.model.save_checkpoint(epoch, optimizer, train_metrics["loss"])
 
     def _train_epoch(
@@ -152,11 +159,11 @@ class TrainerManager(BaseClass):
         correct = 0
         total = 0
 
-        for batch in self.dataloaders["train"]:
+        for batch in tqdm(self.dataloaders["train"], desc="Train epoch", unit="batch"):
             inputs, labels = self.model.prepare_input(batch)
 
             optimizer.zero_grad()
-            outputs = self.model(**inputs)
+            outputs = self.model(*inputs)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -166,20 +173,22 @@ class TrainerManager(BaseClass):
             total += labels.size(0)
 
         metrics = Metrics()
-        metrics.add("avg_loss", total_loss / len(self.dataloaders["train"]))
+        metrics.add("loss", total_loss / len(self.dataloaders["train"]))
         metrics.add("accuracy", 100 * correct / total)
         return metrics
 
-    def evaluate(self) -> Metrics:
+    def evaluate(self, split: str) -> Metrics:
         self.model.eval()
         metrics = Metrics()
         correct = 0
         total = 0
 
         with torch.no_grad():
-            for batch in self.dataloaders["val"]:
+            for batch in tqdm(
+                self.dataloaders[split], desc=f"Evaluating {split}", unit="batch"
+            ):
                 inputs, labels = self.model.prepare_input(batch)
-                outputs = self.model(**inputs)
+                outputs = self.model(*inputs)
                 correct += self.model.calculate_accuracy(outputs, labels)
                 total += labels.size(0)
 
@@ -187,12 +196,9 @@ class TrainerManager(BaseClass):
         return metrics
 
     def _log_metrics(self, epoch: int, metrics: Metrics, split: str) -> None:
-        wandb.log(
-            {f"{split}/{metric.name}": metric.value for metric in metrics}
-            | {"epoch": epoch}
-        )
+        wandb.log({f"{split}/{metric.name}": metric.value for metric in metrics})
 
-        logger.info(f"Epoch [{epoch + 1}] - {split.capitalize()}:\n{metrics}")
+        logger.info(f"Epoch [{epoch}] - {split.capitalize()}:\n{metrics}")
 
 
 if __name__ == "__main__":
@@ -210,4 +216,4 @@ if __name__ == "__main__":
         dataset_cls=dataset_cls,
     )
 
-    trainer.train(epochs=5, use_combinations=True)
+    trainer.train(epochs=10, use_combinations=True)
