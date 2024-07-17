@@ -139,6 +139,7 @@ class TrainerManager(BaseClass):
         criterion = self._get_loss_function(loss_name)
         dataloaders = self._get_dataloaders(batch_size)
 
+        global_steps = 0
         start_epoch = 0
         if from_checkpoint:
             start_epoch, _, _ = model.restart_from_checkpoint(optimizer)
@@ -146,16 +147,16 @@ class TrainerManager(BaseClass):
 
         for epoch in range(start_epoch, epochs):
             train_metrics = self._train_epoch(
-                model, optimizer, criterion, dataloaders["train"]
+                model, optimizer, criterion, dataloaders["train"], global_steps
             )
-            self._log_metrics(epoch, train_metrics, "train")
+            self._log_metrics(global_steps, train_metrics, "train")
 
             val_metrics = self.evaluate(model, "val", dataloaders, criterion)
-            self._log_metrics(epoch, val_metrics, "val")
+            self._log_metrics(global_steps, val_metrics, "val")
 
             if (epoch + 1) % 5 == 0:
                 test_metrics = self.evaluate(model, "test", dataloaders, criterion)
-                self._log_metrics(epoch, test_metrics, "test")
+                self._log_metrics(global_steps, test_metrics, "test")
                 model.save_checkpoint(epoch, optimizer, train_metrics["loss"])
 
     def _train_epoch(
@@ -164,6 +165,7 @@ class TrainerManager(BaseClass):
         optimizer: torch.optim.Optimizer,
         criterion: nn.Module,
         train_dataloader: DataLoader,
+        global_steps: int,
     ) -> Metrics:
         total_loss = 0.0
         correct = 0
@@ -177,10 +179,16 @@ class TrainerManager(BaseClass):
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+            batch_loss = loss.item()
 
-            total_loss += loss.item()
+            batch_metrics = Metrics()
+            batch_metrics.add("batch_loss", batch_loss)
+            self._log_metrics(global_steps, batch_metrics, "train")
+
+            total_loss += batch_loss
             correct += model.calculate_accuracy(outputs, labels)
             total += labels.size(0)
+            global_steps += 1
 
         metrics = Metrics()
         metrics.add("loss", total_loss / len(train_dataloader))
@@ -220,19 +228,18 @@ class TrainerManager(BaseClass):
             data={f"{split}/{metric.name}": metric.value for metric in metrics},
             step=epoch,
         )
-
         logger.info(f"Epoch [{epoch}] - {split.capitalize()}:\n{metrics}")
 
 
 if __name__ == "__main__":
-    from ..datasets.classification_v0_dataset import ClassificationV0Dataset
+    from ..datasets.classification_dataset import ClassificationDataset
     from ..models.classification_v0_model import ClassificationV0Model
     from ..utils.consts import CONFIG_PATH
 
     trainer = TrainerManager(
         model_class=ClassificationV0Model,
         config_path=CONFIG_PATH / "trainer_config.json",
-        dataset_cls=ClassificationV0Dataset,
+        dataset_cls=ClassificationDataset,
         dataset_limit=20000,
     )
 

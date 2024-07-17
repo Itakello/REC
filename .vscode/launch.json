@@ -176,6 +176,39 @@
                 "PYTHONPATH": "${workspaceFolder}"
             },
             "console": "integratedTerminal"
-        }
+        },
+        {
+            "name": "Python: Baseline Model",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.models.baseline_model",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Classification v2 Model",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.models.classification_v2_model",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Classification v3 Model",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.models.classification_v3_model",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
     ]
 }

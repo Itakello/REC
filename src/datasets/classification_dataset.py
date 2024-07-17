@@ -13,7 +13,7 @@ logger = ItakelloLogging().get_logger(__name__)
 
 
 @dataclass
-class ClassificationV0Dataset(RefCOCOgBaseDataset):
+class ClassificationDataset(RefCOCOgBaseDataset):
     top_k: int = 6
     empty_embedding: torch.Tensor = field(init=False)
 
@@ -54,9 +54,11 @@ class ClassificationV0Dataset(RefCOCOgBaseDataset):
         if correct_candidate_idx == -1 or correct_candidate_idx > self.top_k:
             correct_candidate_idx = self.top_k
 
-        target = F.one_hot(
-            torch.tensor(correct_candidate_idx), num_classes=self.top_k + 1
-        ).float()
+        target = (
+            F.one_hot(torch.tensor(correct_candidate_idx), num_classes=self.top_k + 1)
+            .float()
+            .to(DEVICE)
+        )
 
         item.update(
             {
@@ -100,7 +102,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
     # Initialize the dataset
-    dataset = ClassificationV0Dataset(split="train", top_k=6)
+    dataset = ClassificationDataset(split="train", top_k=6)
 
     print(f"Dataset length: {len(dataset)}")
 

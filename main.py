@@ -3,7 +3,7 @@ import os
 from itakello_logging import ItakelloLogging
 
 from src.classes.llm import LLM
-from src.datasets.classification_v0_dataset import ClassificationV0Dataset
+from src.datasets.classification_dataset import ClassificationDataset
 from src.evaluations.highlighting_method_baseline_eval import HighlightingMethodEval
 from src.evaluations.similarity_baseline_eval import SimilarityBaselineEval
 from src.evaluations.yolo_baseline_eval import YOLOBaselineEval
@@ -11,6 +11,7 @@ from src.managers.download_manager import DownloadManager
 from src.managers.preprocess_manager import PreprocessManager
 from src.managers.trainer_manager import TrainerManager
 from src.models.classification_v0_model import ClassificationV0Model
+from src.models.classification_v2_model import ClassificationV2Model
 from src.models.clip_model import ClipModel
 from src.models.yolo_model import YOLOModel
 from src.utils.consts import (
@@ -85,9 +86,9 @@ def main() -> None:
     config_path = CONFIG_PATH / "trainer_config.json"
 
     trainer = TrainerManager(
-        model_class=ClassificationV0Model,
+        model_class=ClassificationV2Model,
         config_path=config_path,
-        dataset_cls=ClassificationV0Dataset,
+        dataset_cls=ClassificationDataset,
         dataset_limit=20000,
     )
 

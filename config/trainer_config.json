@@ -1,5 +1,5 @@
 {
-    "classification_v0": {
+    "classification_v2": {
         "learning_rates": [
             0.0001,
             0.001
@@ -11,10 +11,6 @@
                     0.9,
                     0.999
                 ]
-            },
-            {
-                "type": "SGD",
-                "momentum": 0.9
             }
         ],
         "batch_sizes": [

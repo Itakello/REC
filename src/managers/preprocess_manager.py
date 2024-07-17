@@ -554,14 +554,10 @@ class PreprocessManager(BaseClass):
     def process_data_3(self, highlighting_method: str, top_k: int) -> None:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
 
-        # df = self.add_candidates_embeddings(df, highlighting_method)
-        # self.save_dataframe_to_csv(df, "9_added_candidates_embeddings.csv")
+        self.add_candidates_embeddings(df, highlighting_method)
 
         df = self.add_order_candidates_and_correct_index(df)
         self.save_dataframe_to_csv(df, "9_ordered_candidates_and_correct_indices.csv")
-
-        df = self.filter_train_samples_with_correct_candidate(df, top_k)
-        self.save_dataframe_to_csv(df, "10_filtered_train_samples.csv")
         self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
 
 
@@ -586,11 +582,9 @@ if __name__ == "__main__":
 
     #  Add YOLO predictions
     yolo_model = YOLOModel(version="yolov5mu")
-    
 
     # Add highlighting embeddings
     highlighting_method = "ellipse"
     top_k = 6
-    
 
     logger.confirmation("All preprocessing steps completed successfully")
