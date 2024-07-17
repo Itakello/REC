@@ -210,5 +210,27 @@
             },
             "console": "integratedTerminal"
         },
+        {
+            "name": "Python: Regression dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.datasets.regression_dataset",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Regression V0 Model",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.models.regression_v0_model",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        },
     ]
 }
