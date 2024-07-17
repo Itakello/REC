@@ -75,7 +75,7 @@ def test_base_custom_model() -> None:
     train_model(loaded_model, epochs=5)
 
     # Verify that a new version is created when we create another model
-    another_model = TestModel(config=config)
+    another_model = TestModel(config=config)  # type: ignore
     print(f"Created another model with version number: {another_model.version_num}")
 
     # Clean up

@@ -3,15 +3,19 @@ import os
 from itakello_logging import ItakelloLogging
 
 from src.classes.llm import LLM
+from src.datasets.classification_v0_dataset import ClassificationV0Dataset
 from src.evaluations.highlighting_method_baseline_eval import HighlightingMethodEval
 from src.evaluations.similarity_baseline_eval import SimilarityBaselineEval
 from src.evaluations.yolo_baseline_eval import YOLOBaselineEval
 from src.managers.download_manager import DownloadManager
 from src.managers.preprocess_manager import PreprocessManager
+from src.managers.trainer_manager import TrainerManager
+from src.models.classification_v0_model import ClassificationV0Model
 from src.models.clip_model import ClipModel
 from src.models.yolo_model import YOLOModel
 from src.utils.consts import (
     CLIP_MODEL,
+    CONFIG_PATH,
     DATA_PATH,
     HIGHLIGHTING_METHODS,
     IOU_THRESHOLDS,
@@ -78,6 +82,16 @@ def main() -> None:
     top_k = 6
 
     pm.process_data_3(highlighting_method=highlighting_method, top_k=top_k)"""
+    config_path = CONFIG_PATH / "trainer_config.json"
+
+    trainer = TrainerManager(
+        model_class=ClassificationV0Model,
+        config_path=config_path,
+        dataset_cls=ClassificationV0Dataset,
+        dataset_limit=20000,
+    )
+
+    trainer.train(epochs=10, use_combinations=True)
 
 
 if __name__ == "__main__":
