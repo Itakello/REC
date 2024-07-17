@@ -32,6 +32,7 @@ os.environ["WANDB_SILENT"] = "true"
 def main() -> None:
     """dm = DownloadManager(data_path=DATA_PATH)
     dm.download_data(drive_url=DATASET_URL)
+    dm.download_drive_folders(drive_url=)
 
     llm = LLM(
         base_model=LLM_MODEL,

@@ -12,13 +12,12 @@ from itakello_logging import ItakelloLogging
 from PIL import Image
 from tqdm import tqdm
 
-from src.utils.calculate_iou import calculate_iou
-
 from ..classes.highlighting_modality import HighlightingModality
 from ..classes.llm import LLM
 from ..interfaces.base_class import BaseClass
 from ..models.clip_model import ClipModel
 from ..models.yolo_model import YOLOModel
+from ..utils.calculate_iou import calculate_iou
 from ..utils.consts import CLIP_MODEL, IMAGES_PATH, PROCESSED_ANNOTATIONS_PATH
 from ..utils.create_directory import create_directory
 
@@ -587,13 +586,11 @@ if __name__ == "__main__":
 
     #  Add YOLO predictions
     yolo_model = YOLOModel(version="yolov5mu")
-    pm.add_yolo_predictions(yolo_model=yolo_model)
+    
 
     # Add highlighting embeddings
     highlighting_method = "ellipse"
     top_k = 6
-    pm.add_top_candidates_embeddings(
-        highlighting_method=highlighting_method, top_k=top_k
-    )
+    
 
     logger.confirmation("All preprocessing steps completed successfully")

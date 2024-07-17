@@ -1,11 +1,11 @@
 {
     "classification_v0": {
-        "learning_rates": [
+        "learning_rate": [
             0.0001,
             0.001,
             0.01
         ],
-        "optimizers": [
+        "optimizer": [
             {
                 "type": "Adam",
                 "betas": [
@@ -18,9 +18,8 @@
                 "momentum": 0.9
             }
         ],
-        "batch_sizes": [
-            64,
-            32
+        "batch_size": [
+            64
         ],
         "loss": [
             "CrossEntropyLoss"

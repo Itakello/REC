@@ -56,3 +56,4 @@ STATS_PATH = Path("./stats")
 
 # URLS
 DATASET_URL = "https://drive.google.com/uc?id=1xijq32XfEm6FPhUb7RsZYWHc2UuwVkiq"
+PROCESSED_DATA_URL = "https://drive.google.com/drive/folders/12G-0UOs3sUecSTUGlzFP3VBXN0LqsXdW?usp=sharing"

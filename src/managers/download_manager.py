@@ -66,6 +66,38 @@ class DownloadManager(BaseClass):
 
         logger.confirmation("Dataset downloaded and organized successfully")
 
+    def download_drive_folders(self, drive_url: str) -> None:
+        logger.info(f"Downloading compressed folders from Google Drive: {drive_url}")
+        compressed_file_name = self.data_path / "compressed_folders.tar.gz"
+
+        try:
+            # 1. Download the compressed file
+            gdown.download(drive_url, output=str(compressed_file_name), quiet=True)
+            logger.info(f"Downloaded compressed file: {compressed_file_name}")
+
+            # 2. Extract the folders to DATA_PATH
+            logger.info(f"Extracting folders to {self.data_path}")
+            with tarfile.open(compressed_file_name, "r:gz") as tar:
+                tar.extractall(path=self.data_path)
+
+            # Log the extracted folders
+            extracted_folders = [
+                f.name
+                for f in self.data_path.iterdir()
+                if f.is_dir() and f.name not in ["images", "annotations"]
+            ]
+            logger.info(f"Extracted folders: {', '.join(extracted_folders)}")
+
+            # 3. Remove the tar file
+            logger.info("Removing the compressed file")
+            compressed_file_name.unlink()
+
+            logger.confirmation("Folders extracted successfully to DATA_PATH")
+
+        except Exception as e:
+            logger.error(f"An error occurred while processing compressed folders: {e}")
+            raise
+
 
 if __name__ == "__main__":
     dm = DownloadManager(
