@@ -217,7 +217,8 @@ class TrainerManager(BaseClass):
 
     def _log_metrics(self, epoch: int, metrics: Metrics, split: str) -> None:
         wandb.log(
-            {f"{split}/{metric.name}": metric.value for metric in metrics}, step=epoch
+            data={f"{split}/{metric.name}": metric.value for metric in metrics},
+            step=epoch,
         )
 
         logger.info(f"Epoch [{epoch}] - {split.capitalize()}:\n{metrics}")
