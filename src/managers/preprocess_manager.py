@@ -345,30 +345,6 @@ class PreprocessManager(BaseClass):
         logger.confirmation("Updated CSV file saved with YOLO predictions")
         return df
 
-    def filter_train_valid_samples(
-        self, df: pd.DataFrame, iou_threshold: float = 0.5
-    ) -> pd.DataFrame:
-        valid_indices = []
-        for index, row in df.iterrows():
-            if row["split"] in ["test", "val"]:
-                valid_indices.append(index)
-                continue
-
-            yolo_predictions = row["yolo_predictions"]
-            gt_bbox = row["bbox"]
-
-            # Check if any prediction matches the ground truth
-            valid = any(
-                calculate_iou(pred, gt_bbox)[0] >= iou_threshold
-                for pred in yolo_predictions
-            )
-            if valid:
-                valid_indices.append(index)
-
-        df = df.loc[valid_indices]
-        logger.confirmation(f"Filtered dataset to {len(df)} valid samples")
-        return df
-
     def add_correct_candidate_idx(
         self, df: pd.DataFrame, iou_threshold: float
     ) -> pd.DataFrame:
@@ -411,14 +387,11 @@ class PreprocessManager(BaseClass):
     def process_data_2(self, yolo_model: YOLOModel, iou_threshold: float) -> None:
         df = self.get_dataframe_from_csv(file_name=self.annotations_file_name)
 
-        # df = self.add_yolo_predictions(df, yolo_model)
-        # self.save_dataframe_to_csv(df, "6_added_yolo_predictions.csv")
-
-        df = self.filter_train_valid_samples(df, iou_threshold)
-        self.save_dataframe_to_csv(df, "7_filtered_valid_samples.csv")
+        df = self.add_yolo_predictions(df, yolo_model)
+        self.save_dataframe_to_csv(df, "6_added_yolo_predictions.csv")
 
         df = self.add_correct_candidate_idx(df, iou_threshold)
-        self.save_dataframe_to_csv(df, "8_added_correct_candidate_idx_and_ious.csv")
+        self.save_dataframe_to_csv(df, "7_added_correct_candidate_idx_and_ious.csv")
         self.save_dataframe_to_csv(df, file_name=self.annotations_file_name)
 
     def add_candidates_embeddings(
@@ -525,29 +498,6 @@ class PreprocessManager(BaseClass):
 
         logger.confirmation(
             "Updated CSV file with ordered candidates and correct indices"
-        )
-        return df
-
-    def filter_train_samples_with_correct_candidate(
-        self, df: pd.DataFrame, top_k: int
-    ) -> pd.DataFrame:
-        logger.info("Starting to filter train samples with correct candidate")
-
-        initial_count = len(df)
-
-        # Filter out samples where ordered_correct_candidate_idx is greater than or equal to top_k
-        mask = (df["split"] == "train") & (df["ordered_correct_candidate_idx"] >= top_k)
-        df = df[~mask]
-
-        final_count = len(df)
-        removed_count = initial_count - final_count
-
-        logger.info(f"Initial sample count: {initial_count}")
-        logger.info(f"Removed samples count: {removed_count}")
-        logger.info(f"Final sample count: {final_count}")
-
-        logger.confirmation(
-            "Filtered train samples with correct candidate within top-k"
         )
         return df
 

@@ -6,15 +6,6 @@ logger = ItakelloLogging().get_logger(__name__)
 
 
 def create_directory(path: Path) -> Path:
-    """
-    Create a directory at the given path if it doesn't exist.
-
-    Args:
-        path (Path): The path where the directory should be created.
-
-    Returns:
-        Path: The path of the created or existing directory.
-    """
     try:
         if not path.exists():
             path.mkdir(parents=True, exist_ok=True)

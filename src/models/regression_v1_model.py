@@ -39,7 +39,7 @@ class RegressionV1Model(BaseCustomModel):
         regression_inputs = torch.cat(
             [original_image_encoding, sentence_encoding],
             dim=-1,
-        )
+        ).float()
         x = F.relu(self.bn1(self.fc1(regression_inputs)))
         x = F.relu(self.bn2(self.fc2(x)))
         x = F.relu(self.bn3(self.fc3(x)))
