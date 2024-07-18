@@ -9,8 +9,8 @@ from ..utils.consts import DEVICE
 
 
 @dataclass
-class ClassificationV0Model(BaseCustomModel):
-    name: str = "classification_v0"
+class ClassificationV1Model(BaseCustomModel):
+    name: str = "classification_v1"
     embeddings_dim: int = field(default=1024)
     num_candidates: int = field(default=6)
 

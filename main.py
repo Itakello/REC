@@ -11,6 +11,7 @@ from src.managers.download_manager import DownloadManager
 from src.managers.preprocess_manager import PreprocessManager
 from src.managers.trainer_manager import TrainerManager
 from src.models.classification_v0_model import ClassificationV0Model
+from src.models.classification_v1_model import ClassificationV1Model
 from src.models.classification_v2_model import ClassificationV2Model
 from src.models.clip_model import ClipModel
 from src.models.yolo_model import YOLOModel
@@ -85,14 +86,32 @@ def main() -> None:
     pm.process_data_3(highlighting_method=highlighting_method, top_k=top_k)"""
     config_path = CONFIG_PATH / "trainer_config.json"
 
-    trainer = TrainerManager(
+    trainer_cl_v0 = TrainerManager(
+        model_class=ClassificationV0Model,
+        config_path=config_path,
+        dataset_cls=ClassificationDataset,
+        dataset_limit=20000,
+    )
+
+    trainer_cl_v0.train(epochs=10, use_combinations=True)
+
+    trainer_cl_v1 = TrainerManager(
+        model_class=ClassificationV1Model,
+        config_path=config_path,
+        dataset_cls=ClassificationDataset,
+        dataset_limit=20000,
+    )
+
+    trainer_cl_v1.train(epochs=10, use_combinations=True)
+
+    trainer_cl_v2 = TrainerManager(
         model_class=ClassificationV2Model,
         config_path=config_path,
         dataset_cls=ClassificationDataset,
         dataset_limit=20000,
     )
 
-    trainer.train(epochs=10, use_combinations=True)
+    trainer_cl_v2.train(epochs=10, use_combinations=True)
 
 
 if __name__ == "__main__":

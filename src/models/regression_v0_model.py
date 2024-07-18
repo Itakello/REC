@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from ..interfaces.base_custom_model import BaseCustomModel
+from ..utils.calculate_iou import calculate_iou
 from ..utils.consts import DEVICE
 
 
@@ -18,7 +19,8 @@ class RegressionV0Model(BaseCustomModel):
         nn.Module.__init__(self)
         super().__post_init__()
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(self.num_candidates * self.embeddings_dim * 3, 256)
+
+        self.fc1 = nn.Linear(self.embeddings_dim * 3, 256)
         self.bn1 = nn.BatchNorm1d(256)
         self.fc2 = nn.Linear(256, 128)
         self.bn2 = nn.BatchNorm1d(128)
@@ -28,56 +30,63 @@ class RegressionV0Model(BaseCustomModel):
 
     def forward(
         self,
-        candidate_encodings: torch.Tensor,  # shape: [batch_size, num_candidates, embeddings_dim]
-        sentence_encoding: torch.Tensor,  # shape: [batch_size, embeddings_dim]
-        original_image_encoding: torch.Tensor,  # shape: [batch_size, embeddings_dim]
-    ) -> torch.Tensor:
-        # x shape: [batch_size, 6, 2048]
-        combined_features = torch.cat(
-            [
-                original_image_encoding.unsqueeze(1).repeat(1, self.num_candidates, 1),
-                candidate_encodings,
-                sentence_encoding.unsqueeze(1).repeat(1, self.num_candidates, 1),
-            ],
+        candidate_encodings: torch.Tensor,  # [32,6,1024]
+        sentence_encoding: torch.Tensor,  # [32,1024]
+        original_image_encoding: torch.Tensor,  # [32,1024]
+        bounding_boxes: torch.Tensor,  # [32,6,4]
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+
+        top_candidate_encodings = candidate_encodings[
+            :, 0, :
+        ]  # shape: [batch_size, embeddings_dim]
+        top_bounding_box = bounding_boxes[:, 0, :]  # shape: [batch_size, 4]
+
+        regression_inputs = torch.cat(
+            [top_candidate_encodings, original_image_encoding, sentence_encoding],
             dim=-1,
         )
-        x = self.flatten(combined_features)
-        x = F.relu(self.bn1(self.fc1(x)))
+        x = F.relu(self.bn1(self.fc1(regression_inputs)))
         x = F.relu(self.bn2(self.fc2(x)))
         x = F.relu(self.bn3(self.fc3(x)))
         x = self.fc4(x)
-        return x
+
+        return x + top_bounding_box
 
     def __hash__(self) -> int:
         return super().__hash__()
 
     def prepare_input(self, batch: dict) -> tuple[list[torch.Tensor], torch.Tensor]:
-        candidates_embeddings = batch["candidates_embeddings"].to(DEVICE)
-        combined_sentences_embeddings = batch["combined_sentences_embeddings"].to(
-            DEVICE
-        )
-        images_embeddings = batch["image_features"].to(DEVICE)
-        labels = batch["targets"].to(DEVICE)
+        candidate_encodings = batch["candidates_embeddings"].to(DEVICE)
+        sentence_encoding = batch["combined_sentences_embeddings"].to(DEVICE).squeeze()
+        original_image_encoding = batch["image_embeddings"].to(DEVICE).squeeze()
+        bounding_boxes = batch["candidates_bboxes"].to(DEVICE)
+        gold_embeddings = batch["gold_embeddings"].to(DEVICE)
+        labels = batch["gold_bboxes"].to(DEVICE)
+        images = batch["images"]
+
         return [
-            candidates_embeddings,
-            combined_sentences_embeddings,
-            images_embeddings,
+            candidate_encodings,
+            sentence_encoding,
+            original_image_encoding,
+            bounding_boxes,
+            gold_embeddings,
+            images,
         ], labels
 
-    def calculate_accuracy(
-        self, outputs: torch.Tensor, labels: torch.Tensor, iou_threshold: float = 0.8
-    ) -> int:
+    def calculate_accuracy(self, outputs, labels, iou_threshold: float = 0.8) -> float:
         # Ensure the outputs and labels are on the same device
         outputs = outputs.to(labels.device)
 
-        # Calculate IoUs for each bounding box
-        ious = self.calculate_iou(outputs, labels)
+        corrects = 0
+        for output, label in zip(outputs, labels):
+            _, correct = calculate_iou(output, label, iou_threshold)
+            if correct:
+                corrects += 1
 
         # Determine which predictions are correct based on the IoU threshold
-        correct = ious >= iou_threshold
 
         # Calculate accuracy
-        accuracy = correct.item()
+        accuracy = corrects / len(outputs)
 
         return accuracy
 
@@ -95,9 +104,12 @@ if __name__ == "__main__":
     candidate_encodings = torch.randn(batch_size, 6, 1024).to(DEVICE)
     sentence_encoding = torch.randn(batch_size, 1024).to(DEVICE)
     original_image_encoding = torch.randn(batch_size, 1024).to(DEVICE)
+    bounding_boxes = torch.randn(batch_size, 6, 4).to(DEVICE)
 
     # Forward pass
-    output = model(candidate_encodings, sentence_encoding, original_image_encoding)
+    output = model(
+        candidate_encodings, sentence_encoding, original_image_encoding, bounding_boxes
+    )
 
     print(
         f"Input shape: {candidate_encodings.shape}, {sentence_encoding.shape}, {original_image_encoding.shape}"

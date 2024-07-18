@@ -21,7 +21,7 @@ class ClipModel(BaseModel):
     def __post_init__(self) -> None:
         super().__post_init__()
         self.model, self.preprocess = clip.load(
-            str(self.version), device=DEVICE, download_root=str(self.model_path)
+            CLIP_MODEL, device=DEVICE, download_root=str(self.model_path)
         )
 
     def encode_sentences(

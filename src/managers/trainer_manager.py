@@ -14,7 +14,6 @@ import wandb
 
 from ..classes.metric import Metrics
 from ..datasets.refcocog_base_dataset import RefCOCOgBaseDataset
-from ..datasets.regression_dataset import RegressionDataset
 from ..interfaces.base_class import BaseClass
 from ..interfaces.base_custom_model import BaseCustomModel
 from ..utils.consts import DEVICE, WANDB_PROJECT
@@ -28,6 +27,7 @@ class TrainerManager(BaseClass):
     config_path: Path
     dataset_cls: Type[RefCOCOgBaseDataset]
     dataset_limit: int = -1
+    is_regression: bool = False
     config: dict = field(init=False)
 
     def __post_init__(self) -> None:
@@ -60,7 +60,7 @@ class TrainerManager(BaseClass):
         else:
             custom_loss_module = importlib.import_module("src.classes.custom_losses")
             if hasattr(custom_loss_module, loss_name):
-                return getattr(custom_loss_module, loss_name)
+                return getattr(custom_loss_module, loss_name)()
             else:
                 raise ValueError(
                     f"Loss function {loss_name} not found in torch.nn or custom_losses module."
@@ -147,7 +147,7 @@ class TrainerManager(BaseClass):
             logger.info(f"Resuming training from epoch {start_epoch}")
 
         for epoch in range(start_epoch, epochs):
-            train_metrics = self._train_epoch(
+            train_metrics, global_steps = self._train_epoch(
                 model, optimizer, criterion, dataloaders["train"], global_steps
             )
             self._log_metrics(global_steps, train_metrics, "train")
@@ -155,7 +155,7 @@ class TrainerManager(BaseClass):
             val_metrics = self.evaluate(model, "val", dataloaders, criterion)
             self._log_metrics(global_steps, val_metrics, "val")
 
-            if (epoch + 1) % 5 == 0:
+            if (epoch + 1) % 10 == 0:
                 test_metrics = self.evaluate(model, "test", dataloaders, criterion)
                 self._log_metrics(global_steps, test_metrics, "test")
                 model.save_checkpoint(epoch, optimizer, train_metrics["loss"])
@@ -167,8 +167,10 @@ class TrainerManager(BaseClass):
         criterion: nn.Module,
         train_dataloader: DataLoader,
         global_steps: int,
-    ) -> Metrics:
+    ) -> tuple[Metrics, int]:
         total_loss = 0.0
+        total_spatial_loss = 0.0
+        total_semantic_loss = 0.0
         correct = 0
         total = 0
 
@@ -176,15 +178,31 @@ class TrainerManager(BaseClass):
             inputs, labels = model.prepare_input(batch)
 
             optimizer.zero_grad()
-            outputs = model(*inputs)
-            loss = criterion(outputs, labels)
+            if self.is_regression:
+                if model.name == "regression_v1":
+                    outputs = model(*inputs[1:-2])
+                elif model.name == "regression_v0":
+                    outputs = model(*inputs[:-2])
+                else:
+                    raise ValueError("Model name not recognized.")
+                loss, spatial_loss, semantic_loss = criterion(
+                    outputs, labels, inputs[4], inputs[1], inputs[5]
+                )
+                total_spatial_loss += spatial_loss.item()
+                total_semantic_loss += semantic_loss.item()
+            else:
+                outputs = model(*inputs)
+                loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
             batch_loss = loss.item()
 
             batch_metrics = Metrics()
             batch_metrics.add("batch_loss", batch_loss)
-            self._log_metrics(global_steps, batch_metrics, "train")
+            if self.is_regression:
+                batch_metrics.add("batch_spatial_loss", spatial_loss.item())
+                batch_metrics.add("batch_semantic_loss", semantic_loss.item())
+            self._log_metrics(global_steps, batch_metrics, "train", False)
 
             total_loss += batch_loss
             correct += model.calculate_accuracy(outputs, labels)
@@ -193,8 +211,11 @@ class TrainerManager(BaseClass):
 
         metrics = Metrics()
         metrics.add("loss", total_loss / len(train_dataloader))
+        if self.is_regression:
+            metrics.add("spatial_loss", total_spatial_loss / len(train_dataloader))
+            metrics.add("semantic_loss", total_semantic_loss / len(train_dataloader))
         metrics.add("accuracy", 100 * correct / total)
-        return metrics
+        return metrics, global_steps
 
     def evaluate(
         self,
@@ -206,6 +227,8 @@ class TrainerManager(BaseClass):
         model.eval()
         metrics = Metrics()
         total_loss = 0.0
+        total_spatial_loss = 0.0
+        total_semantic_loss = 0.0
         correct = 0
         total = 0
 
@@ -214,26 +237,41 @@ class TrainerManager(BaseClass):
                 dataloaders[split], desc=f"Evaluating {split}", unit="batch"
             ):
                 inputs, labels = model.prepare_input(batch)
-                outputs = model(*inputs)
-                loss = criterion(outputs, labels)
+                if self.is_regression:
+                    outputs = model(*inputs[:-2])
+                    loss, spatial_loss, semantic_loss = criterion(
+                        outputs, labels, inputs[4], inputs[1], inputs[5]
+                    )
+                    total_spatial_loss += spatial_loss.item()
+                    total_semantic_loss += semantic_loss.item()
+                else:
+                    outputs = model(*inputs)
+                    loss = criterion(outputs, labels)
                 total_loss += loss.item()
                 correct += model.calculate_accuracy(outputs, labels)
                 total += labels.size(0)
 
         metrics.add("loss", total_loss / len(dataloaders[split]))
+        if self.is_regression:
+            metrics.add("spatial_loss", total_spatial_loss / len(dataloaders[split]))
+            metrics.add("semantic_loss", total_semantic_loss / len(dataloaders[split]))
         metrics.add("accuracy", 100 * correct / total)
         return metrics
 
-    def _log_metrics(self, epoch: int, metrics: Metrics, split: str) -> None:
+    def _log_metrics(
+        self, epoch: int, metrics: Metrics, split: str, show_log: bool = False
+    ) -> None:
         wandb.log(
             data={f"{split}/{metric.name}": metric.value for metric in metrics},
             step=epoch,
         )
-        logger.info(f"Epoch [{epoch}] - {split.capitalize()}:\n{metrics}")
+        if show_log:
+            logger.info(f"Epoch [{epoch}] - {split.capitalize()}:\n{metrics}")
 
 
 if __name__ == "__main__":
     from ..datasets.classification_dataset import ClassificationDataset
+    from ..datasets.regression_dataset import RegressionDataset
     from ..models.classification_v0_model import ClassificationV0Model
     from ..models.regression_v0_model import RegressionV0Model
     from ..utils.consts import CONFIG_PATH
@@ -243,6 +281,7 @@ if __name__ == "__main__":
         config_path=CONFIG_PATH / "trainer_config.json",
         dataset_cls=RegressionDataset,
         dataset_limit=20000,
+        is_regression=True,
     )
 
     trainer.train(epochs=10, use_combinations=True)

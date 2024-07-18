@@ -77,17 +77,19 @@ class RegressionDataset(RefCOCOgBaseDataset):
 
         image_path = self.get_image_path(row["file_name"])
         image = Image.open(image_path).convert("RGB")
-        gold_bbox = self.get_bbox(row["bbox"])
+        gold_bbox = torch.Tensor(self.get_bbox(row["bbox"]))
         gold_embedding = self.clip.encode_images(
             HighlightingModality.apply_highlighting(image, gold_bbox, "crop")
         )
 
         item.update(
             {
+                "image": image,
                 "candidates_embeddings": reordered_candidates_embeddings,
                 "combined_sentence_embeddings": combined_sentences_embedding,
                 "candidates_bboxes": reordered_bounding_boxes,
                 "image_embedding": image_embedding,
+                "gold_bbox": gold_bbox,
                 "gold_embedding": gold_embedding,
             }
         )
@@ -99,12 +101,15 @@ class RegressionDataset(RefCOCOgBaseDataset):
         collated_batch = {
             "candidates_embeddings": [],
             "combined_sentences_embeddings": [],
+            "images": [],
             "candidates_bboxes": [],
             "image_embeddings": [],
+            "gold_bboxes": [],
             "gold_embeddings": [],
         }
 
         for item in batch:
+            collated_batch["images"].append(item["image"])
             collated_batch["candidates_embeddings"].append(
                 item["candidates_embeddings"]
             )
@@ -113,6 +118,7 @@ class RegressionDataset(RefCOCOgBaseDataset):
             )
             collated_batch["candidates_bboxes"].append(item["candidates_bboxes"])
             collated_batch["image_embeddings"].append(item["image_embedding"])
+            collated_batch["gold_bboxes"].append(item["gold_bbox"])
             collated_batch["gold_embeddings"].append(item["gold_embedding"])
 
         collated_batch["candidates_embeddings"] = torch.stack(  # type: ignore
@@ -126,6 +132,9 @@ class RegressionDataset(RefCOCOgBaseDataset):
         )
         collated_batch["image_embeddings"] = torch.stack(  # type: ignore
             collated_batch["image_embeddings"]
+        )
+        collated_batch["gold_bboxes"] = torch.stack(  # type: ignore
+            collated_batch["gold_bboxes"]
         )
         collated_batch["gold_embeddings"] = torch.stack(  # type: ignore
             collated_batch["gold_embeddings"]

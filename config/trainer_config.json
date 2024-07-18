@@ -1,8 +1,87 @@
 {
+    "classification_v0": {
+        "learning_rates": [
+            0.0001
+        ],
+        "optimizers": [
+            {
+                "type": "Adam",
+                "betas": [
+                    0.9,
+                    0.999
+                ]
+            }
+        ],
+        "batch_sizes": [
+            64
+        ],
+        "losses": [
+            "CrossEntropyLoss"
+        ]
+    },
+    "classification_v1": {
+        "learning_rates": [
+            0.0001
+        ],
+        "optimizers": [
+            {
+                "type": "Adam",
+                "betas": [
+                    0.9,
+                    0.999
+                ]
+            }
+        ],
+        "batch_sizes": [
+            64
+        ],
+        "losses": [
+            "CrossEntropyLoss"
+        ]
+    },
+    "classification_v2": {
+        "learning_rates": [
+            0.0001
+        ],
+        "optimizers": [
+            {
+                "type": "Adam",
+                "betas": [
+                    0.9,
+                    0.999
+                ]
+            }
+        ],
+        "batch_sizes": [
+            64
+        ],
+        "losses": [
+            "CrossEntropyLoss"
+        ]
+    },
     "regression_v0": {
         "learning_rates": [
-            0.0001,
-            0.001
+            0.0001
+        ],
+        "optimizers": [
+            {
+                "type": "Adam",
+                "betas": [
+                    0.9,
+                    0.999
+                ]
+            }
+        ],
+        "batch_sizes": [
+            64
+        ],
+        "losses": [
+            "RECLoss"
+        ]
+    },
+    "regression_v1": {
+        "learning_rates": [
+            0.0001
         ],
         "optimizers": [
             {

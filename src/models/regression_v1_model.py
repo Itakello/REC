@@ -5,12 +5,13 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from ..interfaces.base_custom_model import BaseCustomModel
+from ..utils.calculate_iou import calculate_iou
 from ..utils.consts import DEVICE
 
 
 @dataclass
-class RegressionV0Model(BaseCustomModel):
-    name: str = "regression-v0"
+class RegressionV1Model(BaseCustomModel):
+    name: str = "regression_v1"
     embeddings_dim: int = field(default=1024)
     num_candidates: int = field(default=6)
 
@@ -19,107 +20,94 @@ class RegressionV0Model(BaseCustomModel):
         super().__post_init__()
         self.flatten = nn.Flatten()
 
-        # Define fully connected layers for combining features
-        self.fc_comb1 = nn.Linear(self.embeddings_dim * 3, 512)
-        self.bn_comb1 = nn.BatchNorm1d(512)
-        self.fc_comb2 = nn.Linear(512, 256)
-        self.bn_comb2 = nn.BatchNorm1d(256)
-        self.fc_comb3 = nn.Linear(256, self.num_candidates)
-
-        # Define fully connected layers for regression
         self.fc1 = nn.Linear(self.embeddings_dim * 2, 256)
         self.bn1 = nn.BatchNorm1d(256)
         self.fc2 = nn.Linear(256, 128)
         self.bn2 = nn.BatchNorm1d(128)
         self.fc3 = nn.Linear(128, 64)
         self.bn3 = nn.BatchNorm1d(64)
-        self.fc4 = nn.Linear(64, 4)  # Regressing bounding box coordinates (x, y, w, h)
+        self.fc4 = nn.Linear(64, 4)
 
     def forward(
         self,
-        candidate_encodings,
-        sentence_encoding,
-        original_image_encoding,
-        bounding_boxes,
-    ):
-        batch_size = candidate_encodings.size(0)
+        sentence_encoding: torch.Tensor,  # [32,1024]
+        original_image_encoding: torch.Tensor,  # [32,1024]
+        bounding_boxes: torch.Tensor,  # [32,6,4]
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
 
-        # Expand sentence encoding to match the dimensions of candidate encodings
-        sentence_encoding_expanded = sentence_encoding.unsqueeze(1).repeat(
-            1, self.num_candidates, 1
-        )
+        top_bounding_box = bounding_boxes[:, 0, :]  # shape: [batch_size, 4]
 
-        # Concatenate original image encoding, candidate encodings, and sentence encoding
-        combined_features = torch.cat(
-            [
-                original_image_encoding.unsqueeze(1).repeat(1, self.num_candidates, 1),
-                candidate_encodings,
-                sentence_encoding_expanded,
-            ],
+        regression_inputs = torch.cat(
+            [original_image_encoding, sentence_encoding],
             dim=-1,
         )
-
-        # Process combined features to select the best candidate
-        combined_features_flat = combined_features.view(
-            batch_size * self.num_candidates, -1
-        )
-        x_comb = F.relu(self.bn_comb1(self.fc_comb1(combined_features_flat)))
-        x_comb = F.relu(self.bn_comb2(self.fc_comb2(x_comb)))
-        candidate_scores = self.fc_comb3(x_comb).view(batch_size, self.num_candidates)
-
-        # Select the best candidate based on the scores
-        best_candidate_indices = candidate_scores.argmax(dim=1)
-
-        # Gather the selected candidate encodings and bounding boxes
-        selected_candidate_embeddings = candidate_encodings[
-            range(batch_size), best_candidate_indices
-        ]
-        selected_bboxes = bounding_boxes[range(batch_size), best_candidate_indices]
-
-        # Concatenate the original image encoding with the selected candidate encoding
-        final_features = torch.cat(
-            [original_image_encoding, selected_candidate_embeddings], dim=-1
-        )
-
-        # Pass through fully connected layers to regress bounding box coordinates
-        x = F.relu(self.bn1(self.fc1(final_features)))
+        x = F.relu(self.bn1(self.fc1(regression_inputs)))
         x = F.relu(self.bn2(self.fc2(x)))
         x = F.relu(self.bn3(self.fc3(x)))
-        coordinates = self.fc4(x)  # Shape: [batch_size, 4]
+        x = self.fc4(x)
 
-        # Add the regression output to the selected bounding boxes to get the final coordinates
-        final_coordinates = selected_bboxes + coordinates
-
-        return final_coordinates, selected_candidate_embeddings, sentence_encoding
+        return x + top_bounding_box
 
     def __hash__(self) -> int:
         return super().__hash__()
 
     def prepare_input(self, batch: dict) -> tuple[list[torch.Tensor], torch.Tensor]:
         candidate_encodings = batch["candidates_embeddings"].to(DEVICE)
-        sentence_encoding = batch["combined_sentences_embeddings"].to(DEVICE)
-        original_image_encoding = batch["image_embeddings"].to(DEVICE)
+        sentence_encoding = batch["combined_sentences_embeddings"].to(DEVICE).squeeze()
+        original_image_encoding = batch["image_embeddings"].to(DEVICE).squeeze()
         bounding_boxes = batch["candidates_bboxes"].to(DEVICE)
-        labels = batch["candidates_bboxes"].to(DEVICE)
+        gold_embeddings = batch["gold_embeddings"].to(DEVICE)
+        labels = batch["gold_bboxes"].to(DEVICE)
+        images = batch["images"]
 
         return [
             candidate_encodings,
             sentence_encoding,
             original_image_encoding,
             bounding_boxes,
+            gold_embeddings,
+            images,
         ], labels
 
-    def calculate_accuracy(self, outputs, labels, iou_threshold=0.8):
+    def calculate_accuracy(self, outputs, labels, iou_threshold: float = 0.8) -> float:
         # Ensure the outputs and labels are on the same device
         outputs = outputs.to(labels.device)
 
-        # Calculate IoUs for each bounding box
-        ious = self.calculate_iou(outputs, labels)
+        corrects = 0
+        for output, label in zip(outputs, labels):
+            _, correct = calculate_iou(output, label, iou_threshold)
+            if correct:
+                corrects += 1
 
         # Determine which predictions are correct based on the IoU threshold
-        correct = ious >= iou_threshold
 
         # Calculate accuracy
-        accuracy = correct.float().mean().item()
+        accuracy = corrects / len(outputs)
 
         return accuracy
+
+
+if __name__ == "__main__":
+    # Test the model
+    config = {
+        "learning_rate": 0.001,
+    }
+    model = RegressionV1Model(config=config).to(DEVICE)
+    print(f"Created new model with version number: {model.version_num}")
+
+    # Test forward pass
+    batch_size = 32
+    candidate_encodings = torch.randn(batch_size, 6, 1024).to(DEVICE)
+    sentence_encoding = torch.randn(batch_size, 1024).to(DEVICE)
+    original_image_encoding = torch.randn(batch_size, 1024).to(DEVICE)
+    bounding_boxes = torch.randn(batch_size, 6, 4).to(DEVICE)
+
+    # Forward pass
+    output = model(
+        candidate_encodings, sentence_encoding, original_image_encoding, bounding_boxes
+    )
+
+    print(
+        f"Input shape: {candidate_encodings.shape}, {sentence_encoding.shape}, {original_image_encoding.shape}"
+    )
+    print(f"Output shape: {output.shape}")

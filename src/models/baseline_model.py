@@ -54,8 +54,7 @@ class BaselineModel(BaseModel):
         return accuracy
 
     def log_to_wandb(self, accuracy: float) -> None:
-        wandb.log({"test/accuracy": accuracy}, step=4)
-        wandb.log({"test/accuracy": accuracy}, step=9)
+        wandb.log({"test/accuracy": accuracy})
 
     def evaluate_and_log(self, test_dataset: BaselineDataset) -> None:
         test_dataloader = DataLoader(
@@ -70,7 +69,7 @@ class BaselineModel(BaseModel):
         accuracy = self.evaluate(test_dataloader)
         self.log_to_wandb(accuracy)
 
-        print(f"Evaluation Results:")
+        print("Evaluation Results:")
         print(f"IoU threshold {self.iou_threshold}: {accuracy:.4f}")
 
         wandb.finish()
