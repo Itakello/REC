@@ -232,5 +232,16 @@
             },
             "console": "integratedTerminal"
         },
+        {
+            "name": "Python: Regression V1 Model",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "src.models.regression_v1_model",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal"
+        }
     ]
 }

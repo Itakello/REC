@@ -10,8 +10,8 @@ from ..utils.consts import DEVICE
 
 
 @dataclass
-class RegressionV1Model(BaseCustomModel):
-    name: str = "regression_v1"
+class RegressionV3Model(BaseCustomModel):
+    name: str = "regression_v3"
     embeddings_dim: int = field(default=1024)
     num_candidates: int = field(default=6)
 
@@ -32,10 +32,7 @@ class RegressionV1Model(BaseCustomModel):
         self,
         sentence_encoding: torch.Tensor,  # [32,1024]
         original_image_encoding: torch.Tensor,  # [32,1024]
-        bounding_boxes: torch.Tensor,  # [32,6,4]
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-
-        top_bounding_box = bounding_boxes[:, 0, :]  # shape: [batch_size, 4]
 
         regression_inputs = torch.cat(
             [original_image_encoding, sentence_encoding],
@@ -46,7 +43,7 @@ class RegressionV1Model(BaseCustomModel):
         x = F.relu(self.bn3(self.fc3(x)))
         x = self.fc4(x)
 
-        return x + top_bounding_box
+        return x
 
     def __hash__(self) -> int:
         return super().__hash__()
@@ -92,22 +89,16 @@ if __name__ == "__main__":
     config = {
         "learning_rate": 0.001,
     }
-    model = RegressionV1Model(config=config).to(DEVICE)
+    model = RegressionV3Model(config=config).to(DEVICE)
     print(f"Created new model with version number: {model.version_num}")
 
     # Test forward pass
     batch_size = 32
-    candidate_encodings = torch.randn(batch_size, 6, 1024).to(DEVICE)
     sentence_encoding = torch.randn(batch_size, 1024).to(DEVICE)
     original_image_encoding = torch.randn(batch_size, 1024).to(DEVICE)
-    bounding_boxes = torch.randn(batch_size, 6, 4).to(DEVICE)
 
     # Forward pass
-    output = model(
-        sentence_encoding, original_image_encoding, bounding_boxes
-    )
+    output = model(sentence_encoding, original_image_encoding)
 
-    print(
-        f"Input shape: {candidate_encodings.shape}, {sentence_encoding.shape}, {original_image_encoding.shape}"
-    )
+    print(f"Input shape: {sentence_encoding.shape}, {original_image_encoding.shape}")
     print(f"Output shape: {output.shape}")

@@ -10,8 +10,8 @@ from ..utils.consts import DEVICE
 
 
 @dataclass
-class RegressionV1Model(BaseCustomModel):
-    name: str = "regression_v1"
+class RegressionV2Model(BaseCustomModel):
+    name: str = "regression_v2"
     embeddings_dim: int = field(default=1024)
     num_candidates: int = field(default=6)
 
@@ -20,7 +20,7 @@ class RegressionV1Model(BaseCustomModel):
         super().__post_init__()
         self.flatten = nn.Flatten()
 
-        self.fc1 = nn.Linear(self.embeddings_dim * 2, 256)
+        self.fc1 = nn.Linear(self.embeddings_dim * 3, 256)
         self.bn1 = nn.BatchNorm1d(256)
         self.fc2 = nn.Linear(256, 128)
         self.bn2 = nn.BatchNorm1d(128)
@@ -30,15 +30,17 @@ class RegressionV1Model(BaseCustomModel):
 
     def forward(
         self,
+        candidate_encodings: torch.Tensor,  # [32,6,1024]
         sentence_encoding: torch.Tensor,  # [32,1024]
         original_image_encoding: torch.Tensor,  # [32,1024]
-        bounding_boxes: torch.Tensor,  # [32,6,4]
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
 
-        top_bounding_box = bounding_boxes[:, 0, :]  # shape: [batch_size, 4]
+        top_candidate_encodings = candidate_encodings[
+            :, 0, :
+        ]  # shape: [batch_size, embeddings_dim]
 
         regression_inputs = torch.cat(
-            [original_image_encoding, sentence_encoding],
+            [top_candidate_encodings, original_image_encoding, sentence_encoding],
             dim=-1,
         )
         x = F.relu(self.bn1(self.fc1(regression_inputs)))
@@ -46,7 +48,7 @@ class RegressionV1Model(BaseCustomModel):
         x = F.relu(self.bn3(self.fc3(x)))
         x = self.fc4(x)
 
-        return x + top_bounding_box
+        return x
 
     def __hash__(self) -> int:
         return super().__hash__()
@@ -92,7 +94,7 @@ if __name__ == "__main__":
     config = {
         "learning_rate": 0.001,
     }
-    model = RegressionV1Model(config=config).to(DEVICE)
+    model = RegressionV2Model(config=config).to(DEVICE)
     print(f"Created new model with version number: {model.version_num}")
 
     # Test forward pass
@@ -100,12 +102,9 @@ if __name__ == "__main__":
     candidate_encodings = torch.randn(batch_size, 6, 1024).to(DEVICE)
     sentence_encoding = torch.randn(batch_size, 1024).to(DEVICE)
     original_image_encoding = torch.randn(batch_size, 1024).to(DEVICE)
-    bounding_boxes = torch.randn(batch_size, 6, 4).to(DEVICE)
 
     # Forward pass
-    output = model(
-        sentence_encoding, original_image_encoding, bounding_boxes
-    )
+    output = model(candidate_encodings, sentence_encoding, original_image_encoding)
 
     print(
         f"Input shape: {candidate_encodings.shape}, {sentence_encoding.shape}, {original_image_encoding.shape}"
