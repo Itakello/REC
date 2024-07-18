@@ -14,6 +14,7 @@ import wandb
 
 from ..classes.metric import Metrics
 from ..datasets.refcocog_base_dataset import RefCOCOgBaseDataset
+from ..datasets.regression_dataset import RegressionDataset
 from ..interfaces.base_class import BaseClass
 from ..interfaces.base_custom_model import BaseCustomModel
 from ..utils.consts import DEVICE, WANDB_PROJECT
@@ -57,9 +58,9 @@ class TrainerManager(BaseClass):
         if hasattr(nn, loss_name):
             return getattr(nn, loss_name)()
         else:
-            custom_loss_module = importlib.import_module("custom_losses")
+            custom_loss_module = importlib.import_module("src.classes.custom_losses")
             if hasattr(custom_loss_module, loss_name):
-                return getattr(custom_loss_module, loss_name)()
+                return getattr(custom_loss_module, loss_name)
             else:
                 raise ValueError(
                     f"Loss function {loss_name} not found in torch.nn or custom_losses module."
@@ -234,12 +235,13 @@ class TrainerManager(BaseClass):
 if __name__ == "__main__":
     from ..datasets.classification_dataset import ClassificationDataset
     from ..models.classification_v0_model import ClassificationV0Model
+    from ..models.regression_v0_model import RegressionV0Model
     from ..utils.consts import CONFIG_PATH
 
     trainer = TrainerManager(
-        model_class=ClassificationV0Model,
+        model_class=RegressionV0Model,
         config_path=CONFIG_PATH / "trainer_config.json",
-        dataset_cls=ClassificationDataset,
+        dataset_cls=RegressionDataset,
         dataset_limit=20000,
     )
 

@@ -1,5 +1,5 @@
 {
-    "classification_v2": {
+    "regression_v0": {
         "learning_rates": [
             0.0001,
             0.001
@@ -17,7 +17,7 @@
             64
         ],
         "losses": [
-            "CrossEntropyLoss"
+            "RECLoss"
         ]
     }
 }
