@@ -98,5 +98,25 @@
         "losses": [
             "RECLoss"
         ]
+    },
+    "regression_v2": {
+        "learning_rates": [
+            0.0001
+        ],
+        "optimizers": [
+            {
+                "type": "Adam",
+                "betas": [
+                    0.9,
+                    0.999
+                ]
+            }
+        ],
+        "batch_sizes": [
+            64
+        ],
+        "losses": [
+            "RECLoss"
+        ]
     }
 }

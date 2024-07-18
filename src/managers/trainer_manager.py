@@ -146,6 +146,9 @@ class TrainerManager(BaseClass):
             start_epoch, _, _ = model.restart_from_checkpoint(optimizer)
             logger.info(f"Resuming training from epoch {start_epoch}")
 
+        val_metrics = self.evaluate(model, "val", dataloaders, criterion)
+        self._log_metrics(global_steps, val_metrics, "val")
+
         for epoch in range(start_epoch, epochs):
             train_metrics, global_steps = self._train_epoch(
                 model, optimizer, criterion, dataloaders["train"], global_steps
@@ -183,7 +186,8 @@ class TrainerManager(BaseClass):
                     outputs = model(*inputs[1:-2])
                 elif model.name == "regression_v0":
                     outputs = model(*inputs[:-2])
-                else:
+                elif model.name == "regression_v2":
+                    outputs = model(*inputs[:-3])
                     raise ValueError("Model name not recognized.")
                 loss, spatial_loss, semantic_loss = criterion(
                     outputs, labels, inputs[4], inputs[1], inputs[5]
@@ -238,7 +242,12 @@ class TrainerManager(BaseClass):
             ):
                 inputs, labels = model.prepare_input(batch)
                 if self.is_regression:
-                    outputs = model(*inputs[:-2])
+                    if model.name == "regression_v1":
+                        outputs = model(*inputs[1:-2])
+                    elif model.name == "regression_v0":
+                        outputs = model(*inputs[:-2])
+                    elif model.name == "regression_v2":
+                        outputs = model(*inputs[:-3])
                     loss, spatial_loss, semantic_loss = criterion(
                         outputs, labels, inputs[4], inputs[1], inputs[5]
                     )
@@ -274,9 +283,11 @@ if __name__ == "__main__":
     from ..datasets.regression_dataset import RegressionDataset
     from ..models.classification_v0_model import ClassificationV0Model
     from ..models.regression_v0_model import RegressionV0Model
+    from ..models.regression_v1_model import RegressionV1Model
+    from ..models.regression_v2_model import RegressionV2Model
     from ..utils.consts import CONFIG_PATH
 
-    trainer = TrainerManager(
+    trainer_r_0 = TrainerManager(
         model_class=RegressionV0Model,
         config_path=CONFIG_PATH / "trainer_config.json",
         dataset_cls=RegressionDataset,
@@ -284,4 +295,24 @@ if __name__ == "__main__":
         is_regression=True,
     )
 
-    trainer.train(epochs=10, use_combinations=True)
+    trainer_r_0.train(epochs=10, use_combinations=True)
+
+    """trainer_r_1 = TrainerManager(
+        model_class=RegressionV1Model,
+        config_path=CONFIG_PATH / "trainer_config.json",
+        dataset_cls=RegressionDataset,
+        dataset_limit=20000,
+        is_regression=True,
+    )
+
+    trainer_r_1.train(epochs=10, use_combinations=True)
+
+    trainer_r_2 = TrainerManager(
+        model_class=RegressionV2Model,
+        config_path=CONFIG_PATH / "trainer_config.json",
+        dataset_cls=RegressionDataset,
+        dataset_limit=20000,
+        is_regression=True,
+    )
+
+    trainer_r_2.train(epochs=10, use_combinations=True)"""

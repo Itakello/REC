@@ -83,12 +83,7 @@ class RegressionV0Model(BaseCustomModel):
             if correct:
                 corrects += 1
 
-        # Determine which predictions are correct based on the IoU threshold
-
-        # Calculate accuracy
-        accuracy = corrects / len(outputs)
-
-        return accuracy
+        return corrects
 
 
 if __name__ == "__main__":

@@ -13,7 +13,6 @@ from ..utils.consts import DEVICE
 class RegressionV1Model(BaseCustomModel):
     name: str = "regression_v1"
     embeddings_dim: int = field(default=1024)
-    num_candidates: int = field(default=6)
 
     def __post_init__(self) -> None:
         nn.Module.__init__(self)
@@ -79,12 +78,7 @@ class RegressionV1Model(BaseCustomModel):
             if correct:
                 corrects += 1
 
-        # Determine which predictions are correct based on the IoU threshold
-
-        # Calculate accuracy
-        accuracy = corrects / len(outputs)
-
-        return accuracy
+        return corrects
 
 
 if __name__ == "__main__":
@@ -103,9 +97,7 @@ if __name__ == "__main__":
     bounding_boxes = torch.randn(batch_size, 6, 4).to(DEVICE)
 
     # Forward pass
-    output = model(
-        sentence_encoding, original_image_encoding, bounding_boxes
-    )
+    output = model(sentence_encoding, original_image_encoding, bounding_boxes)
 
     print(
         f"Input shape: {candidate_encodings.shape}, {sentence_encoding.shape}, {original_image_encoding.shape}"
